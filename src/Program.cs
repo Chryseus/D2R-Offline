@@ -44,7 +44,13 @@ namespace D2ROffline
                 if (args[0].Equals("-FixLocalSave", StringComparison.InvariantCultureIgnoreCase))
                 {
                     // hande FixLocalSave
-                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1));
+                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), true);
+                    return true;
+                }
+                else if (args[0].Equals("-FixLocalSaveNoQuests", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // hande FixLocalSave
+                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), false);
                     return true;
                 }
                 else if (args[0].Equals("-UpdateKeyBinds", StringComparison.InvariantCultureIgnoreCase))
