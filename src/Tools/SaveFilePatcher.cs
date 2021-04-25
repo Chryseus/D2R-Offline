@@ -6,7 +6,7 @@ namespace D2ROffline.Tools
 {
     internal class SaveFilePatcher : NativeMethods
     {
-        public static void PatchSaveFiles(string saveFileName)
+        public static void PatchSaveFiles(string saveFileName, bool completeQuests)
         {
             Program.ConsolePrint("Patching save files...");
 
@@ -46,11 +46,11 @@ namespace D2ROffline.Tools
 
             foreach (string saveFileAbsolutePath in saveFiles)
             {
-                ProcessSaveFile(saveFileAbsolutePath);
+                ProcessSaveFile(saveFileAbsolutePath, completeQuests);
             }
         }
 
-        private static void ProcessSaveFile(string saveFileAbsolutePath)
+        private static void ProcessSaveFile(string saveFileAbsolutePath, bool completeQuests)
         {
             string saveFileName = Path.GetFileName(saveFileAbsolutePath);
             byte[] rawSaveFile = File.ReadAllBytes(saveFileAbsolutePath);
@@ -58,9 +58,13 @@ namespace D2ROffline.Tools
             File.WriteAllBytes(saveFileAbsolutePath + ".backup", rawSaveFile);
             Program.ConsolePrint($"Backup for {saveFileName} created");
 
-            EnableAllWaypoints(rawSaveFile);
-            CompleteGame(rawSaveFile);
+            if (completeQuests == true)
+            { 
+                EnableAllWaypoints(rawSaveFile);
+                CompleteGame(rawSaveFile);
+            }
 
+            SetDifficulty(rawSaveFile);
             UpdateChecksum(rawSaveFile);
 
             File.WriteAllBytes(saveFileAbsolutePath, rawSaveFile);
@@ -112,8 +116,12 @@ namespace D2ROffline.Tools
 
         private static void CompleteGame(byte[] rawSaveFile) 
         {
-            rawSaveFile[Constants.CHARACTER_PROGRESSION_OFFSET] = Constants.GAME_COMPLETED_ON_HELL;
             ChangeQuests(true, rawSaveFile);
+        }
+
+        private static void SetDifficulty(byte[] rawSaveFile)
+        {
+            rawSaveFile[Constants.CHARACTER_PROGRESSION_OFFSET] = Constants.GAME_COMPLETED_ON_HELL;
         }
 
         private static int GetQuestOffset(Constants.Difficulty difficulty, Constants.Act act, Constants.Quest quest)
