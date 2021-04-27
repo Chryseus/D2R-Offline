@@ -12,8 +12,7 @@ More information about the crc32 bypassing and remapping can be found in my '[By
 
 1. You will need the Diablo II: Resurrected game files.
 
-1. You will need .NET Framework v4.7.2, which you can download at:  
-https://dotnet.microsoft.com/download/dotnet-framework/thank-you/net472-web-installer
+1. You may also need [.NET Framework v4.7.2](https://dotnet.microsoft.com/download/dotnet-framework/thank-you/net472-web-installer).
 
 1. Download the latest release *(or clone the project and build it)* :  
 https://github.com/ferib/D2R-Offline/releases  
@@ -23,9 +22,11 @@ Unzip and copy **both** `D2ROffline.exe` and `patches.txt` to your Diablo II: Re
 
 1. Double-click `D2ROffline.exe` to start the tool.
 
-1. A cmd window should open and begin the patching process, then prompt you to hit any key to continue, then the game should open. You can then close the cmd window.
+1. A cmd window should open and begin the patching process.
 
-1. When loading a character, use the TCP/IP button and host a game, double clicking the character name or clicking Play will not work by default. See the `-FixLocalSave` argument under [Usage](#Usage) if you would like to edit your saves to play in offline mode *(including act1 to act5)*.
+1. Done!
+
+When loading a character, use the TCP/IP button and host a game, double clicking the character name or clicking Play will not work by default. See the `-FixLocalSave` argument under [Usage](#Usage) if you would like to edit your saves to play in offline mode *(including act1 to act5)*.
 
 ## Please see the [FAQ](FAQ.md) if you have any issues.
 
@@ -86,7 +87,7 @@ Language patches to force the client into loading a language, thanks to Ferib (m
 ```
 
 ## Mutiplayer (tcp/ip)
-Want to test out multiplayer mode? feel free to join my server at `ferib.dev` and come say hi!
+Want to test out multiplayer mode? feel free to join my (premature) server emulator at `d2r.ferib.dev` and come say hi!
 
 Also, feel free to [donate money](https://github.com/sponsors/ferib) in case you made it this far, this will keep me motivated to work on Diablo2Resurrected related projects and to keep the server going, thanks!
 
