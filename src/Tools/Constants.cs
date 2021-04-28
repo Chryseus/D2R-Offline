@@ -15,6 +15,7 @@
 
         public const string DIABLO_SAVE_FILE_EXTENSION = ".d2s";
         public const string DIABLO_DEFAULT_SAVE_FOLDER = "Diablo II Resurrected Tech Alpha";
+        public const string DIABLO_MAIN_EXE_FILE_NAME = "Game.exe";
 
         public enum Difficulty
         {
