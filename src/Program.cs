@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using D2ROffline.Tools;
 
 namespace D2ROffline
@@ -35,12 +31,10 @@ namespace D2ROffline
 
         private static bool HandlerArgs(string[] args)
         {
-            string gameArgs = "";
             int crashDelay = 25;
             if (args.Length > 0)
             {
-                if(args.Length > 1)
-                    gameArgs = args[1]; // may gets overwritten somwhere else
+                string gameArgs;
                 if (args[0].Equals("-FixLocalSave", StringComparison.InvariantCultureIgnoreCase))
                 {
                     // hande FixLocalSave
@@ -53,25 +47,57 @@ namespace D2ROffline
                     KeyBindingSync.SyncKeyBindings(args.ElementAtOrDefault(1));
                     return false;
                 }
-                else if (args.Length > 1 && args[1].Equals("-Delay", StringComparison.InvariantCultureIgnoreCase))
+                else if
+                (
+                    args[0].Equals("-Delay", StringComparison.InvariantCultureIgnoreCase) ||
+                    (args.Length > 1 && args[1].Equals("-Delay", StringComparison.InvariantCultureIgnoreCase))
+                )
                 {
-                    // Handle Delay
-                    if(!Int32.TryParse(args[2], out crashDelay))
+                    // user is setting a custom delay value
+                    if (args[0].Equals("-Delay", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        Console.WriteLine("Bad argument for -Delay");
-                        return false;
+                        gameArgs = string.Join(" ", args.Skip(2).Take(args.Length - 2));
+                        if (HandleDelayArg(args.ElementAtOrDefault(1), out crashDelay))
+                        {
+                            return Patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
+                        }
+                        else
+                        {
+                            return false;
+                        }
                     }
-                    ConsolePrint($"Delay has been set to: {crashDelay}ms", ConsoleColor.DarkYellow);
-
-                    // if user is setting a custom delay value and specifying game.exe path
-                    if (args.Length > 3)
-                        gameArgs = args[3];
+                    // user is setting a custom delay value and specifying game.exe path
+                    else
+                    {
+                        if (HandleDelayArg(args.ElementAtOrDefault(2), out crashDelay))
+                        {
+                            gameArgs = string.Join(" ", args.Skip(3).Take(args.Length - 3));
+                            return Patcher.Start(args[0], crashDelay, gameArgs);
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
                 }
-                // launch with extra CLI options
-                return Patcher.Start(args[0], crashDelay, gameArgs);
+                else if (args[0].Trim().StartsWith("-"))
+                {
+                    // user is specifying game args only
+                    gameArgs = string.Join(" ", args.Take(args.Length));
+                    return Patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
+                }
+                else
+                {
+                    // user is specifying game.exe path
+                    gameArgs = string.Join(" ", args.Skip(1).Take(args.Length - 1));
+                    return Patcher.Start(args[0], crashDelay, gameArgs);
+                }
             }
-            // launch with default settings
-            return Patcher.Start();
+            else 
+            {
+                // launch with default settings
+                return Patcher.Start();
+            }
         }
 
         private static void PrintASCIIArt()
@@ -137,6 +163,21 @@ namespace D2ROffline
             Console.ForegroundColor = color;
             Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss.fffff")}]: {str}");
             Console.ForegroundColor = old;
+        }
+
+        private static bool HandleDelayArg(string delayArg, out int delay) 
+        {
+            // Handle Delay
+            if (!int.TryParse(delayArg, out delay))
+            {
+                Console.WriteLine("Bad argument for -Delay");
+                return false;
+            }
+            else
+            {
+                ConsolePrint($"Delay has been set to: {delay}ms", ConsoleColor.DarkYellow);
+                return true;
+            }
         }
 
     }
