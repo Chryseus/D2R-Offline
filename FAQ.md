@@ -45,7 +45,11 @@ Use the `-FixLocalSave` argument with `D2ROffline.exe` to adjust your save files
 
 ### How do I enable ladder runewords?
 
-D2R-Offline can't currently do that, sorry. The setting for ladder runewords is adjusted on a per-game basis (that is, whenever you open a server or start playing single player, that particular instance of the game figures out if you should have ladder runewords). D2R-Offline only runs during D2R's startup to patch the client as a whole.
+It varies per install (and it also depends on how fast/slow your computer is, unfortunately), but try playing around with the `-Delay` command on your shortcut/cmd terminal, like this:
+
+`D2R-Offline.exe Game.exe -Delay #`
+
+Some users report using a `-Delay` value of `300` enables these runewords.
 
 ### Why is my map overlapping/not displaying properly?
 
