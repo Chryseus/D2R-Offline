@@ -1,18 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using D2ROffline;
 using System.Security.Cryptography.X509Certificates;
 
 namespace D2ROffline.Tools
 {
     internal class Patcher : NativeMethods
     {
-        public static bool Start(string d2rPath = "Game.exe", int crashDelay = 25, string d2rargs = "")
+        public static bool Start(string d2rPath = Constants.DIABLO_MAIN_EXE_FILE_NAME, int crashDelay = 25, string d2rargs = "")
         {
             if (!File.Exists(d2rPath))
             {
