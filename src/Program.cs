@@ -7,7 +7,7 @@ namespace D2ROffline
 {
     public class Program : NativeMethods
     {
-        public static string version = "v2.0.8";
+        public static string version = "v2.0.9";
 
         static void Main(string[] args)
         {
