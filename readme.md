@@ -87,7 +87,8 @@ Language patches to force the client into loading a language, thanks to Ferib (m
 ```
 
 ## Mutiplayer (tcp/ip)
-Want to test out multiplayer mode? feel free to join my (premature) server emulator at `d2r.ferib.dev` and come say hi!
+Want to test out multiplayer mode? feel free to join my (premature) server emulator at ~~`ferib.dev`~~ `d2rga.net` and come say hi!
+For those who are interested in the server emulation project, check it out at [d2rga.net](http://d2rga.net) for more info!
 
 Also, feel free to [donate money](https://github.com/sponsors/ferib) in case you made it this far, this will keep me motivated to work on Diablo2Resurrected related projects and to keep the server going, thanks!
 
