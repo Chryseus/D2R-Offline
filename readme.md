@@ -36,16 +36,22 @@ When loading a character, use the TCP/IP button and host a game, double clicking
 You can run `D2ROffline.exe` with arguments to solve some problems.
 
 ### -FixLocalSave
-`.\D2ROffline.exe -FixLocalSave` This will update your save files to allow you to play your characters in single player mode *(act3 to act5 included)* instead of hosting a TCP/IP game. This argument prevents the game from loading and will just patch your save files.
+`.\D2ROffline.exe -FixLocalSave` This will update your save files to allow you to play your characters in single-player mode *(act3 to act5 included)* instead of hosting a TCP/IP game. This argument prevents the game from loading and will just patch your save files. Please note that this will also unlock all quests so that you can jump right into all acts.
+
+### -FixLocalSaveNoQuests`
+`.\D2ROffline.exe -FixLocalSaveNoQuests` Does the same as `-FixLocalSave` but without unlocking any quests.
 
 ### -UpdateKeyBinds
 `.\D2ROffline.exe -UpdateKeyBinds` This will sync your keybindings between characters.
 
 ### -Delay \<delay in ms>
-`.\D2ROffline.exe -Delay 35` This will change the delay amount when patching your game, default is 25. Use this and try different values to help with crashes after being in-game for certain amounts of time.
+`.\D2ROffline.exe C:\D2R\Game.exe -Delay 35` This will change the delay amount when patching your game, default is 25. Use this and try different values to help with crashes after being in-game for certain amounts of time.
 
 ### "Game.exe file path"
-`.\D2ROffline.exe "C:\D2R\Game.exe"` Use this to specify a path to Game.exe if you're not running `D2ROffline.exe` from the same directory.
+`.\D2ROffline.exe C:\D2R\Game.exe` Use this to specify a path to Game.exe if you're not running `D2ROffline.exe` from the same directory.
+
+### Passing arguments
+`.\D2ROffline C:\D2R\Game.exe -txt -direct -whatever -w` The patcher will pass all other arguments, which are in our case `-txt -direct -whatever -w`, to the game so that you can launch them as you wish.
 
 ## Custom Patches
 
@@ -85,6 +91,8 @@ Language patches to force the client into loading a language, thanks to Ferib (m
 0x1446C8:+0x270F4: ~ Japanese *[jaJP]*
 0x1446C8:+0x270FC: ~ Brazilian *[ptBR]*
 ```
+
+_NOTE: The above patches are modifying the .text section of the game, for those that want to patch the .data section you can simply use Cheat Engine because the anti-cheating does not scan those areas for modified values._
 
 ## Mutiplayer (tcp/ip)
 Want to test out multiplayer mode? feel free to join my (premature) server emulator at ~~`ferib.dev`~~ `d2rga.net` and come say hi!

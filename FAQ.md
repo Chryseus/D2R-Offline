@@ -43,6 +43,10 @@ Alternatively, you can use the `-FixLocalSave` argument with `D2ROffline.exe` to
 
 Use the `-FixLocalSave` argument with `D2ROffline.exe` to adjust your save files to allow offline play, see the Usage section in the [README](readme.md)
 
+### Why are Act III, IV, and V all black?
+
+It seems that the improved graphics are not yet added to the game, however, you can press `G` to toggle Legacy mode and continue your adventure.
+
 ### How do I enable ladder runewords?
 
 It varies per install (and it also depends on how fast/slow your computer is, unfortunately), but try playing around with the `-Delay` command on your shortcut/cmd terminal, like this:
