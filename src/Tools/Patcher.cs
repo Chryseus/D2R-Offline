@@ -149,7 +149,8 @@ namespace D2ROffline.Tools
                 }
 
                 Console.WriteLine("Possi" +
-                    "ble ntdll copy at 0x" + tmpAddr.ToString("X8"));
+                    "ble ntdll cop" +
+                    "y at 0x" + tmpAddr.ToString("X8"));
 
 
             } while (status != 0);
@@ -236,12 +237,21 @@ namespace D2ROffline.Tools
                     detourCRC(processHandle, (long)baseAddress + i, (long)baseAddress, (long)copyBufEx);
             }
 
+            byte[] patchA = { 0xCC };
+            byte[] patchB = { 0xC3 };
+
+            IntPtr DbgBreakpoint = GetProcAddress(GetModuleHandle("ntdll.dll"), "DbgBreakPoint");
+
+            //WriteProcessMemory(processHandle, DbgBreakpoint, patchA, patchA.Length, out _);
+
             // NOTE: uncomment if you want to snitch a hook inside the .text before it remaps back from RWX to RX
 #if DEBUG
             Program.ConsolePrint("Patching complete..");
             Program.ConsolePrint("[!] Press any key to remap and resume proces...", ConsoleColor.Yellow);
             Console.ReadKey();
 #endif
+
+            //WriteProcessMemory(processHandle, DbgBreakpoint, patchB, patchB.Length, out _);
 
             // remap
             status = NtUnmapViewOfSection(processHandle, baseAddress);
