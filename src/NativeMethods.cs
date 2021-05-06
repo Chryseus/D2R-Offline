@@ -57,6 +57,11 @@ namespace D2ROffline
         public static extern int ResumeThread(IntPtr hThread);
         [DllImport("shell32.dll")]
         public static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr pszPath);
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
 
     }
     public enum AccessMask : uint
