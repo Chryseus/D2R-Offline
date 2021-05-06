@@ -5,7 +5,7 @@ using D2ROffline.Tools;
 
 namespace D2ROffline
 {
-    public class Program : NativeMethods
+    public class Program
     {
         public static string version = "v2.0.9";
 

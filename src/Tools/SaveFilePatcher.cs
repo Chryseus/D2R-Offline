@@ -4,14 +4,14 @@ using System.Runtime.InteropServices;
 
 namespace D2ROffline.Tools
 {
-    internal class SaveFilePatcher : NativeMethods
+    internal class SaveFilePatcher
     {
         public static void PatchSaveFiles(string saveFileName, bool completeQuests)
         {
             Program.ConsolePrint("Patching save files...");
 
             string savedGamesPath = string.Empty;
-            if (SHGetKnownFolderPath(KnownFolder.SavedGames, 0, IntPtr.Zero, out IntPtr pPath) == 0)
+            if (Imports.SHGetKnownFolderPath(KnownFolder.SavedGames, 0, IntPtr.Zero, out IntPtr pPath) == 0)
             {
                 savedGamesPath = Marshal.PtrToStringUni(pPath);
                 Marshal.FreeCoTaskMem(pPath);

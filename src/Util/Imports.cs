@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace D2ROffline
 {
-    public class NativeMethods
+    public static class Imports
     {
         [DllImport("Kernel32.dll")]
         public static extern bool CloseHandle(IntPtr hObject);
@@ -45,7 +45,7 @@ namespace D2ROffline
         public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
 
         [DllImport("kernel32.dll")]
-        public static extern uint SuspendThread(IntPtr hThread);
+        public static extern int SuspendThread(IntPtr hThread);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT64 lpContext);
@@ -62,8 +62,61 @@ namespace D2ROffline
 
         [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
         public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+        [DllImport("ntdll.dll", SetLastError = true)]
+        //public static extern int NtQueryInformationProcess(IntPtr processHandle, ProcessInfoClass processInformationClass, IntPtr processInformation, uint processInformationLength, IntPtr returnLength);
+        public static extern int NtQueryInformationProcess(IntPtr processHandle, ProcessInfClass processInformationClass, ref PROCESS_BASIC_INFORMATION processInformation, uint processInformationLength, IntPtr returnLength);
+
+        [DllImport("kernel32.dll")]
+        public static extern int GetLastError();
+
+        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        public static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, FreeType dwFreeType);
 
     }
+
+    [Flags]
+    public enum FreeType
+    {
+        Decommit = 0x4000,
+        Release = 0x8000
+    }
+
+    public enum ProcessInfClass
+    {
+        ProcessBasicInformation = 0x00,
+        ProcessDebugPort = 0x07,
+        ProcessExceptionPort = 0x08,
+        ProcessAccessToken = 0x09,
+        ProcessWow64Information = 0x1A,
+        ProcessImageFileName = 0x1B,
+        ProcessDebugObjectHandle = 0x1E,
+        ProcessDebugFlags = 0x1F,
+        ProcessExecuteFlags = 0x22,
+        ProcessInstrumentationCallback = 0x28,
+        MaxProcessInfoClass = 0x64
+    }
+    
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ProcessInformationClass
+    {
+        public IntPtr hProcess;
+        public IntPtr hThread;
+        public Int32 dwProcessId;
+        public Int32 dwThreadId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PROCESS_BASIC_INFORMATION
+    {
+        public IntPtr ExitStatus;
+        public IntPtr PebBaseAddress;
+        public IntPtr AffinityMask;
+        public IntPtr BasePriority;
+        public UIntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
+    }
+
     public enum AccessMask : uint
     {
 

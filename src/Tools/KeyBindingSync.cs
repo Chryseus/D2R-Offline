@@ -5,7 +5,7 @@ using System.Collections;
 
 namespace D2ROffline.Tools
 {
-    internal class KeyBindingSync : NativeMethods
+    internal class KeyBindingSync
     {
         const string DIABLO_KEYBINDING_CUSTOM_FILENAME = "Custom.key";
         const string DIABLO_KEYBINDING_FILE_EXTENSION = ".key";
@@ -22,7 +22,7 @@ namespace D2ROffline.Tools
 
             string savedGamesPath = string.Empty;
             string customKeyBindingFileAbsolutePath = string.Empty;
-            if (SHGetKnownFolderPath(KnownFolder.SavedGames, 0, IntPtr.Zero, out IntPtr pPath) == 0)
+            if (Imports.SHGetKnownFolderPath(KnownFolder.SavedGames, 0, IntPtr.Zero, out IntPtr pPath) == 0)
             {
                 savedGamesPath = Marshal.PtrToStringUni(pPath);
                 Marshal.FreeCoTaskMem(pPath);

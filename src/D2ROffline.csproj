@@ -63,13 +63,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Util\Memory.cs" />
     <Compile Include="Tools\Constants.cs" />
+    <Compile Include="Util\Hook.cs" />
     <Compile Include="Tools\KeyBindingSync.cs" />
-    <Compile Include="NativeMethods.cs" />
+    <Compile Include="Util\Imports.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Tools\Patcher.cs" />
     <Compile Include="Tools\SaveFilePatcher.cs" />
+    <Compile Include="Tools\StealthMode.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
