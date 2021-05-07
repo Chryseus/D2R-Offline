@@ -1,4 +1,4 @@
-﻿namespace D2ROffline.Tools
+﻿namespace D2ROffline
 {
     internal class Constants
     {

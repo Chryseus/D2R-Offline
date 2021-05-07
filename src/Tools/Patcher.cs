@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
+using D2ROffline.Util;
 
 namespace D2ROffline.Tools
 {
@@ -85,7 +86,7 @@ namespace D2ROffline.Tools
             long address = 0;
             int status = -1;
 
-
+            // TODO: move to StealthMode
             do
             {
                 IntPtr tmpAddr = (IntPtr)address;

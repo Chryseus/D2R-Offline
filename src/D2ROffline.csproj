@@ -64,7 +64,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Util\Memory.cs" />
-    <Compile Include="Tools\Constants.cs" />
+    <Compile Include="Constants.cs" />
     <Compile Include="Util\Hook.cs" />
     <Compile Include="Tools\KeyBindingSync.cs" />
     <Compile Include="Util\Imports.cs" />
@@ -78,6 +78,12 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="lib\HookLibraryx64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="lib\ScyllaHideGenericPluginx64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="patcher_icon.ico" />
     <Content Include="patches.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using D2ROffline.Util;
 
 namespace D2ROffline.Tools
 {

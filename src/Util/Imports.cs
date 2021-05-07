@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace D2ROffline
+namespace D2ROffline.Util
 {
     public static class Imports
     {

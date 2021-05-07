@@ -7,7 +7,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
 
-namespace D2ROffline.Tools
+namespace D2ROffline.Util
 {
     public class Memory
     {

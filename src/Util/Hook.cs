@@ -5,8 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using D2ROffline;
 
-namespace D2ROffline.Tools
+namespace D2ROffline.Util
 {
+    // Sharpbox HookMgr
     public class Hook
     {
         public Memory Memory { get; set; }

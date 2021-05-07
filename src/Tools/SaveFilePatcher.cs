@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using D2ROffline.Util;
 
 namespace D2ROffline.Tools
 {
