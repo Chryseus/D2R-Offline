@@ -63,9 +63,6 @@ namespace D2ROffline.Tools
                 return false;
             }
 
-           
-
-            // TODO: move to StealthMode
             StealthMode m = new StealthMode(new Memory(d2r));
             ProcessModule ntdll = null;
             foreach(ProcessModule pm in d2r.Modules)
@@ -100,7 +97,7 @@ namespace D2ROffline.Tools
             IntPtr sectionHandle = default;
             long sectionMaxSize = regionSize;
 
-            Ntstatus status = Imports.NtCreateSection(ref sectionHandle, AccessMask.SECTION_ALL_ACCESS, IntPtr.Zero, ref sectionMaxSize, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE, SectionProtectionConstraints.SEC_COMMIT, IntPtr.Zero);
+            Ntstatus status = Imports.NtCreateSection(ref sectionHandle, ACCESS_MASK.GENERIC_ALL, IntPtr.Zero, ref sectionMaxSize, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE, SectionProtectionConstraints.SEC_COMMIT, IntPtr.Zero);
 
             if (status != Ntstatus.STATUS_SUCCESS)
                 return IntPtr.Zero;

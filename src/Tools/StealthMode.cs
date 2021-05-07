@@ -15,9 +15,14 @@ namespace D2ROffline.Tools
         private Memory Memory;
         private List<Hook> Hooks;
 
-        static private string[] NtdllHooks = { "NtSetInformationThread", "NtSetInformationProcess", "NtQuerySystemInformation", "NtQueryInformationProcess", "NtQueryObject", "NtYieldExecution", "NtCreateThreadEx", "NtClose", "NtGetContextThread", "NtSetContextThread", "NtContinue", "KiUserExceptionDispatcher", "NtQuerySystemTime" };
-        static private string[] UserHooks = { "NtUserFindWindowEx", "NtUserBuildHwndList", "NtUserQueryWindow", "NtSetDebugFilterState" };
-        static private string[] Kernel32Hooks = { "OutputDebugStringA", "BlockInput" };
+        static private string[] NtdllHooks = { "NtSetInformationThread", "NtSetDebugFilterState", "NtQuerySystemInformation", "NtQueryInformationProcess", "NtSetInformationProcess",
+            "NtQueryObject", "NtYieldExecution", "NtCreateThreadEx", "NtClose", "NtGetContextThread", "NtSetContextThread", "NtContinue", "KiUserExceptionDispatcher", 
+            "NtQuerySystemTime", "NtResumeThread", "NtQueryPerformanceCounter", "NtDuplicateObject", "NtCreateThread"};
+        static private string[] Kernel32Hooks = { "GetTickCount", "GetTickCount64", "GetLocalTime", "GetSystemTime", "OutputDebugStringA" };
+
+        // TODO: fix these?
+        static private string[] UserHooks = { };
+        static private string[] Win32uHooks = { }; //{ "NtUserBlockInput", "NtUserFindWindowEx", "NtUserBuildHwndList", "NtUserQueryWindow", "NtUserGetForegroundWindow" };
 
         public StealthMode(Memory m)
         {
@@ -38,7 +43,7 @@ namespace D2ROffline.Tools
 
             // RemoveDebugPrivileges
 
-            // MapModuleToProcess
+            // MapModuleToProcess (manual map)
 
             ///DWORD hookDllDataAddressRva = GetDllFunctionAddressRVA(dllMemory, "HookDllData")
 
@@ -114,8 +119,8 @@ namespace D2ROffline.Tools
             {
                 IntPtr address = (IntPtr)nextAddr;
                 status = Imports.VirtualQueryEx(Memory.ProcessHandle, (IntPtr)nextAddr, out basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION)));
-                nextAddr += (long)basicInformation.regionSize;
-                if (!basicInformation.protect.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE) && (long)basicInformation.regionSize > (0x1000 + byteSample.Length))
+                nextAddr += (long)basicInformation.RegionSize;
+                if (!basicInformation.Protect.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE) && (long)basicInformation.RegionSize > (0x1000 + byteSample.Length))
                     continue;
 
                 byte[] shadowNtdllSample = Memory.Read(address+0x400, 32); // NOTE: shadow ntdll starts at 0x400
@@ -167,7 +172,7 @@ namespace D2ROffline.Tools
 
         }
 
-        private void ApplyAllPEBPatchs()
+        public void ApplyAllPEBPatchs()
         {
             //            // copy paste from https://www.pinvoke.net/default.aspx/ntdll.ntqueryinformationprocess
             //            IntPtr pbi = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(PROCESS_BASIC_INFORMATION)));

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace D2ROffline.Util
 {
@@ -30,7 +32,7 @@ namespace D2ROffline.Util
             if (status)
                 patch = new byte[] { 0x90, 0x48, 0xFF, 0xC2 }; // nop, inc rdx
 
-            var addr = (long)GetProcAddress(GetModuleHandle("KERNEL32"), "BaseThreadInitThunk") + 0x04;
+            var addr = (long)GetProcAddress(Imports.GetModuleHandle("KERNEL32"), "BaseThreadInitThunk") + 0x04;
 
             Write(addr, patch);
         }
@@ -50,10 +52,10 @@ namespace D2ROffline.Util
             return Imports.OpenThread(Access, false, (uint)this.TargetProcess.Threads[0].Id);
         }
 
-        //public IntPtr CRT(IntPtr Address)
-        //{
-        //    return Imports.CreateRemoteThread(this.ProcessHandle, IntPtr.Zero, 0, Address, IntPtr.Zero, ThreadFlags.ThreadExecuteImmediately, out IntPtr tID);
-        //}
+        public IntPtr CRT(IntPtr Address)
+        {
+            return Imports.CreateRemoteThread(this.ProcessHandle, IntPtr.Zero, 0, Address, IntPtr.Zero, ThreadFlags.ThreadExecuteImmediately, out IntPtr tID);
+        }
 
         public byte[] Read(long Address, int size)
         {
@@ -147,6 +149,19 @@ namespace D2ROffline.Util
             return Imports.VirtualAllocEx(this.ProcessHandle, BaseAddress, Size, AllocationType, MemoryProtection);
         }
 
+        public void Write<T>(T value, IntPtr address) where T : struct
+        {
+            Write((long)address, Toolbox.GetBytes(value));
+        }
+
+        public T Read<T>(IntPtr address) where T : struct
+        {
+            byte[] buffer = Read(address, Unsafe.SizeOf<T>());
+
+            return Toolbox.GetStructure<T>(buffer);
+        }
+
+
         //public IntPtr SharedAllocEx(int Size, FileMapProtection MemoryProtection, string MapObjName)
         //{
         //    var hMapFile = Imports.CreateFileMapping((IntPtr)(-1), IntPtr.Zero, Imports.FileMapProtection.PageReadWrite, 0, (uint)Size, MapObjName);
@@ -193,9 +208,36 @@ namespace D2ROffline.Util
             return Imports.GetProcAddress(Module, Name);
         }
 
-        public IntPtr GetModuleHandle(string Name)
+        public unsafe Dictionary<string, ulong> GetModules()
         {
-            return Imports.GetModuleHandle(Name);
+            var result = new Dictionary<string, ulong>();
+
+            ulong[] moduleHandleArray = new ulong[1000];
+
+            fixed (ulong* hMods = moduleHandleArray)
+            {
+                if (Imports.EnumProcessModules(ProcessHandle, (ulong)hMods, (uint)(sizeof(ulong) * moduleHandleArray.Length), out uint cbNeeded) > 0)
+                {
+                    for (int moduleIndex = 0; moduleIndex < cbNeeded / sizeof(ulong); moduleIndex++)
+                    {
+                        string name = GetModuleBaseName(moduleHandleArray[moduleIndex]);
+
+                        result[name.ToLower()] = moduleHandleArray[moduleIndex];
+
+                        //if (String.Equals(name, moduleName, StringComparison.InvariantCultureIgnoreCase))
+                        //    return moduleHandleArray[moduleIndex];
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public string GetModuleBaseName(ulong moduleHandle)
+        {
+            StringBuilder name = new StringBuilder(1024);
+            Imports.GetModuleBaseName(ProcessHandle, moduleHandle, name, 1024);
+            return name.ToString();
         }
 
         public bool GetThreadContext(IntPtr Handle, ref CONTEXT64 Context)
@@ -206,6 +248,33 @@ namespace D2ROffline.Util
         public bool SetThreadContext(IntPtr Handle, ref CONTEXT64 Context)
         {
             return Imports.SetThreadContext(Handle, ref Context);
+        }
+
+        public IntPtr CreateSection(MemoryProtectionConstraints memoryProtection, long size)
+        {
+            IntPtr handle = IntPtr.Zero;
+            Ntstatus status = Imports.NtCreateSection(ref handle, ACCESS_MASK.GENERIC_ALL, IntPtr.Zero, ref size, memoryProtection, SectionProtectionConstraints.SEC_COMMIT, IntPtr.Zero);
+            if (status != Ntstatus.STATUS_SUCCESS)
+                throw new Exception("NtCreatSection failed");
+            return handle;
+        }
+
+        public IntPtr GetPebAddress()
+        {
+            PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
+            Imports.NtQueryInformationProcess(ProcessHandle, 0, ref pbi, (uint)Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION)), IntPtr.Zero);
+
+            return pbi.PebBaseAddress;
+        }
+        public _PEB_LDR_DATA GetLoaderData()
+        {
+            var peb = Read<_PEB>(GetPebAddress());
+            return Read<_PEB_LDR_DATA>((IntPtr)peb.Ldr);
+        }
+        public void WriteLoaderData(_PEB_LDR_DATA ldrData)
+        {
+            var peb = Read<_PEB>(GetPebAddress());
+            Write(ldrData, (IntPtr)peb.Ldr);
         }
 
     }
