@@ -46,6 +46,19 @@ namespace D2ROffline.Util
                 this.JumpSize = jumpSize;
         }
 
+        public Hook(Memory memory, long hookAddress, long targetAddress, int jumpSize = -1, bool copyStart = false)
+        {
+            this.Memory = memory;
+            this.Address = targetAddress;
+            this.ShellCode = null;
+            this.HookAddress = hookAddress;
+            this.ReturnAddress = targetAddress;
+            this.OriginalBytes = new byte[0];
+            this.CopyOriginalBytesStart = copyStart;
+            if (jumpSize != -1)
+                this.JumpSize = jumpSize;
+        }
+
         public Hook(byte[] shellCode, long hookAddress, List<long> addr, List<long> loc, bool copyStart = false)
         {
             this.ShellCode = shellCode;
@@ -111,32 +124,35 @@ namespace D2ROffline.Util
             List<byte> asm = new List<byte>();
 
             // add to start
-            if (this.CopyOriginalBytesStart)
+            if(this.ShellCode != null)
             {
-                asm.AddRange(this.OriginalBytes);
-                asm.AddRange(this.ShellCode);
-            }
-            else
-                asm = this.ShellCode.ToList();
-
-            // add addresses into code cave
-            for (int i = 0; i < Addresses.Count; i++)
-            {
-                byte[] bAddress;
-                if (Addresses[i] > 0xFFFFFFFF)
-                    bAddress = BitConverter.GetBytes(Addresses[i]);
-                else
-                    bAddress = BitConverter.GetBytes((int)Addresses[i]);
-
-                for (int j = 0; j < bAddress.Length; j++)
+                if (this.CopyOriginalBytesStart)
                 {
-                    if (this.CopyOriginalBytesStart)
-                        asm[(int)(this.OriginalBytes.Length + Locations[i] + j)] = bAddress[j]; //add padding
+                    asm.AddRange(this.OriginalBytes);
+                    asm.AddRange(this.ShellCode);
+                }
+                else
+                    asm = this.ShellCode.ToList();
+
+                // add addresses into code cave
+                for (int i = 0; i < Addresses.Count; i++)
+                {
+                    byte[] bAddress;
+                    if (Addresses[i] > 0xFFFFFFFF)
+                        bAddress = BitConverter.GetBytes(Addresses[i]);
                     else
-                        asm[(int)(Locations[i] + j)] = bAddress[j];
+                        bAddress = BitConverter.GetBytes((int)Addresses[i]);
+
+                    for (int j = 0; j < bAddress.Length; j++)
+                    {
+                        if (this.CopyOriginalBytesStart)
+                            asm[(int)(this.OriginalBytes.Length + Locations[i] + j)] = bAddress[j]; //add padding
+                        else
+                            asm[(int)(Locations[i] + j)] = bAddress[j];
+                    }
                 }
             }
-
+            
             // Copy X bytes from the removed code
             if (this.JumpSize > -1)
             {
@@ -167,16 +183,26 @@ namespace D2ROffline.Util
             if (this.JumpSize > -1 && this.HookAddress > -1)
                 this.OriginalBytes = Memory.Read(this.HookAddress, this.JumpSize);
 
-            byte[] asmHook = GenerateCave();
-            if (this.Address == -1)
-                this.Address = (long)Memory.AllocEx(ShellCode.Length, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
-            Memory.Write(this.Address, asmHook);
+            if(this.ShellCode != null)
+            {
+                byte[] asmHook = GenerateCave();
+                if (this.Address == -1)
+                    this.Address = (long)Memory.AllocEx(ShellCode.Length, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
+                Memory.Write(this.Address, asmHook);
+            }
 
-            if (this.HookAddress != -1)
+            if(this.ShellCode == null)
             {
                 // Write the detour
                 Memory.Write(this.HookAddress, GetJumpBytes(this.Address));
+                Console.WriteLine($"Detour for {this.HookAddress.ToString("X")} -> {this.Address.ToString("X")}");
+                return this.Address;
+            }
+            if (this.HookAddress != -1)
+            {
+                
                 Console.WriteLine($"Hooking at {this.HookAddress.ToString("X")} {this.Address.ToString("X")}");
+                return this.Address;
             }
             else
             {

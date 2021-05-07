@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -62,102 +63,16 @@ namespace D2ROffline.Tools
                 return false;
             }
 
-            IntPtr regionBase = basicInformation.baseAddress;
-            IntPtr regionSize = basicInformation.regionSize;
-
-            Program.ConsolePrint("Remapping process..");
-            IntPtr addr = RemapMemoryRegion(hProcess, regionBase, regionSize.ToInt32(), MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
-
-            // NOTE: attempt to redirect shadow ntdll back to ntdll (so ScyllaHide can do the trick)
-            byte[] byteSample = new byte[32];
-            IntPtr ntdllAddr = IntPtr.Zero;
-            int ntdllSize = 0;
-
-            foreach (ProcessModule m in d2r.Modules)
-            {
-                if (!m.ModuleName.Equals("ntdll.dll", StringComparison.OrdinalIgnoreCase))
-                    continue;
-                ntdllAddr = m.BaseAddress;
-                ntdllSize = m.ModuleMemorySize;
-                break;
-            }
-            Imports.ReadProcessMemory(hProcess, ntdllAddr + 0x1000, byteSample, byteSample.Length, out _);
-
-            long address = 0;
-            int status = -1;
+           
 
             // TODO: move to StealthMode
-            do
-            {
-                IntPtr tmpAddr = (IntPtr)address;
-                status = Imports.VirtualQueryEx(hProcess, (IntPtr)address, out basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION)));
-                address += (long)basicInformation.regionSize;
-                if (!basicInformation.protect.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE) && (long)basicInformation.regionSize > (0x1000 + byteSample.Length))
-                    continue;
+            StealthMode m = new StealthMode(new Memory(d2r));
+            ProcessModule ntdll = null;
+            foreach(ProcessModule pm in d2r.Modules)
+                if(pm.ModuleName.Equals("ntdll.dll", StringComparison.OrdinalIgnoreCase))
+                    ntdll = pm;
 
-                byte[] byteMatch = new byte[32];
-                Imports.ReadProcessMemory(hProcess, tmpAddr + 0x400, byteMatch, byteMatch.Length, out _); // NOTE: shadow NTDLL starts at 0x400
-
-                bool match = true;
-                for (int i = 0; i < byteMatch.Length; i++)
-                {
-                    if (byteMatch[i] == byteSample[i])
-                        continue;
-                    match = false;
-                    break;
-                }
-                if (!match)
-                    continue;
-
-                byte[] shadowNtdll = new byte[(int)basicInformation.regionSize];
-                byte[] defaultNtdll = new byte[ntdllSize];
-                Imports.ReadProcessMemory(hProcess, tmpAddr, shadowNtdll, shadowNtdll.Length, out _);
-                Imports.ReadProcessMemory(hProcess, ntdllAddr, defaultNtdll, defaultNtdll.Length, out _);
-
-                string[] hookReplace = { "NtSetInformationThread", "NtSetInformationProcess", "NtQuerySystemInformation","NtQueryInformationProcess","NtQueryObject","NtYieldExecution","NtCreateThreadEx",/*"OutputDebugStringA","BlockInput","NtUserFindWindowEx","NtUserBuildHwndList","NtUserQueryWindow","NtSetDebugFilterState",*/ "NtClose", "NtGetContextThread","NtSetContextThread","NtContinue","KiUserExceptionDispatcher","NtQuerySystemTime"};
-                for(int i = 0; i < hookReplace.Length; i++)
-                {
-                    IntPtr jmpAddr = Imports.GetProcAddress(ntdllAddr, hookReplace[i]);
-                    // find in shadow -> 4c 8b d1 b8 ?? ?? ?? ?? F6 04 25 ?? ?? ?? ?? 01 75 03 0F 05 (first DWORD == Syscall ID)
-                    byte[] sign = new byte[20];
-                    Imports.ReadProcessMemory(hProcess, jmpAddr, sign, sign.Length, out _);
-
-                    long resultAddr = -1;
-                    for(int j = 0; j < shadowNtdll.Length - sign.Length; j++)
-                    {
-                        bool found = true;
-                        for (int k = 0; k < sign.Length; k++)
-                        {
-                            if (shadowNtdll[j + k] == sign[k])
-                                continue;
-                            found = false;
-                            break;
-                        }
-                        if (!found)
-                            continue;
-
-                        // Match found!
-                        Console.WriteLine($"0x{(tmpAddr+j).ToString("X12")}: JMP -> 0x{jmpAddr.ToString("X12")} ({hookReplace[i]})");
-
-                        byte[] patch = { 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC };
-                        byte[] jmpBytes = BitConverter.GetBytes((long)jmpAddr);
-                        for (int k = 0; k < 8; k++)
-                            patch[6 + k] = jmpBytes[k];
-                        Imports.WriteProcessMemory(hProcess, (tmpAddr + j), patch, patch.Length, out _);
-                        break;
-                    }       
-                }
-
-                StealthMode sm = new StealthMode(new Memory(d2r));
-                sm.StartInject(new byte[0]);
-
-                Console.WriteLine("Possi" +
-                    "ble ntdll cop" +
-                    "y at 0x" + tmpAddr.ToString("X8"));
-
-
-            } while (status != 0);
-           
+            m.ApplyShadowNtdllHooks(ntdll.BaseAddress, ntdll.ModuleMemorySize);
 
             Program.ConsolePrint("Resuming process..");
             Imports.NtResumeProcess(hProcess);
