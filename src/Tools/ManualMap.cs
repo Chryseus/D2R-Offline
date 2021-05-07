@@ -1,7 +1,4 @@
-﻿
-// TODO: fix later
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -27,32 +24,34 @@ namespace D2ROffline.Tools
             Memory = m;
         }
 
-        public bool InjectImage(byte[] rawImage)
+        public ulong InjectImage(string path, byte[] rawImage)
         {
             LinkedModules = Memory.GetModules();
 
             // MAP OUR DLL, AND DEPENDENCIES, INTO REMOTE PROCESS
-            ulong remoteImage = MapImage("lib/ScyllaHideGenericPluginx64.dll", rawImage);
+            //  dependenc
+            //MapImage("lib/HookLibraryx64.dll", File.ReadAllBytes("lib/HookLibraryx64.dll"));
+            ulong remoteImage = MapImage(path, rawImage);
 
-            Console.WriteLine($"Remote Image {remoteImage.ToString("x2")}");
+            Program.ConsolePrint($"Remote Image {remoteImage.ToString("x2")}");
 
             CallEntrypoint(rawImage, remoteImage);
 
-            return true;
+            return remoteImage;
         }
-        public bool InjectImage(string imagePath)
+        public ulong InjectImage(string imagePath)
         {
             // READ IMAGE FROM DISK
             byte[] imageBytes = File.ReadAllBytes(imagePath);
 
             // FORWARD TO RAW INJECTION
-            return this.InjectImage(imageBytes);
+            return this.InjectImage(imagePath, imageBytes);
         }
 
         #region Manual Map Helpers
         public ulong MapImage(string imageName, byte[] rawImage)
         {
-            Console.WriteLine($"Mapping {imageName}");
+            Program.ConsolePrint($"Mapping {imageName}");
 
             // GET HEADERS
             Toolbox.GetImageHeaders(rawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
@@ -69,7 +68,7 @@ namespace D2ROffline.Tools
             long secOffset = 0;
             uint viewSize = 0;
             Imports.NtMapViewOfSection((IntPtr)sectionHandle, Memory.ProcessHandle, ref remoteImage, UIntPtr.Zero, 0, ref secOffset, ref viewSize, 2, 0x00000000, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
-            Imports.NtMapViewOfSection((IntPtr)sectionHandle, Memory.ProcessHandle, ref localImage, UIntPtr.Zero, 0, ref secOffset, ref viewSize, 2, 0x00000000, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
+            Imports.NtMapViewOfSection((IntPtr)sectionHandle, Process.GetCurrentProcess().Handle, ref localImage, UIntPtr.Zero, 0, ref secOffset, ref viewSize, 2, 0x00000000, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
 
             // SAVE MAPPED EXECUTABLES IN A LIST
             // SO WE CAN RECURSIVELY MAP DEPENDENCIES, AND THEIR DEPENDENCIES
@@ -77,16 +76,8 @@ namespace D2ROffline.Tools
             MappedModules[imageName] = (ulong)remoteImage;
             MappedRawImages[imageName] = rawImage;
 
-            //// ADD LOADER REFERENCE
-            //if (imageName == Options.LoaderImagePath)
-            //{
-            //    if (Options.CreateLoaderReference)
-            //        AddLoaderEntry(imageName, remoteImage);
-            //}
-            //else // ALWAYS CREATE REFERENCE FOR DEPENDENCIES
-            //{
-            AddLoaderEntry(imageName, (ulong)remoteImage);
-            //}
+            // NOTE: detected
+            //AddLoaderEntry(imageName, (ulong)remoteImage);
 
             // COPY HEADERS TO SECTION
             Marshal.Copy(rawImage, 0, (IntPtr)localImage, (int)optionalHeader.SizeOfHeaders);
@@ -95,7 +86,7 @@ namespace D2ROffline.Tools
             this.WriteImageSections(rawImage, dosHeader, (ulong)localImage, fileHeader.NumberOfSections);
             this.RelocateImageByDelta((ulong)localImage, (ulong)remoteImage, optionalHeader);
             this.FixImportTable((ulong)localImage, optionalHeader);
-
+            
             // TODO: unmap localImage??
 
             return (ulong)remoteImage;
@@ -110,16 +101,17 @@ namespace D2ROffline.Tools
 
             if (optionalHeader.AddressOfEntryPoint == 0)
             {
-                Console.WriteLine($"Invalid Entrypoint - skipping {moduleHandle.ToString("x2")}");
+                Program.ConsolePrint($"Invalid Entrypoint - skipping {moduleHandle.ToString("x2")}");
                 return;
             }
 
-            Console.WriteLine("AddressOfEntryPoint", optionalHeader.AddressOfEntryPoint.ToString("x2"));
+            Program.ConsolePrint($"AddressOfEntryPoint {optionalHeader.AddressOfEntryPoint.ToString("x2")}");
 
             Hook callDllMain = new Hook(
                 Memory,
                 new byte[]
                 {
+                    0x90,                                                           // NOP
                     0x48, 0x83, 0xEC, 0x28,                                         // sub      RSP, 0x28
                     0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     // movabs   RCX, 0x0000000000000000
                     0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00,                       // mov      rdx, 0x1
@@ -131,14 +123,15 @@ namespace D2ROffline.Tools
                 },
                 -1,
                 new List<long> { (long)moduleHandle, (long)entrypoint },
-                new List<long> { 6, 26 }
+                new List<long> { 7, 27 }
             );
             callDllMain.Create();
             Memory.BypassCRT(true);
-            Memory.CRT((IntPtr)callDllMain.HookAddress);
+            Memory.CRT((IntPtr)callDllMain.Address);
+            Thread.Sleep(50);
             Memory.BypassCRT(false);
-            Thread.Sleep(5000); // waitForObject?
-            callDllMain.Dispose();
+            //Thread.Sleep(2000); // waitForObject?
+            //callDllMain.Dispose();
         }
 
         public void WriteImageSections(byte[] rawImage, IMAGE_DOS_HEADER dosHeader, ulong localImage, int numberOfSections)
@@ -208,7 +201,7 @@ namespace D2ROffline.Tools
                 // I AM ONLY DOING THIS BECAUSE OF API-SET DLLS
                 // I COULDNT BE ARSED TO MAKE A PINVOKE FOR ApiSetResolveToHost
                 ulong localLibraryHandle = Imports.LoadLibrary(libraryName);
-                libraryName = Memory.GetModuleBaseName(localLibraryHandle).ToLower();
+                libraryName = Memory.GetModuleBaseName(Process.GetCurrentProcess().Handle, localLibraryHandle).ToLower();
 
                 // IF WE MAPPED DEPENDENCY EARLIER, WE SHOULD USE RVA 
                 // INSTEAD OF STATIC MEMORY ADDRESS
@@ -262,7 +255,7 @@ namespace D2ROffline.Tools
 
         public void AddLoaderEntry(string imageName, ulong moduleHandle)
         {
-            Console.WriteLine($"Linking {imageName}({moduleHandle.ToString("x2")}) to module list");
+            Program.ConsolePrint($"Linking {imageName}({moduleHandle.ToString("x2")}) to module list");
 
             var imagePath = Toolbox.FindDll(imageName) ?? imageName;
 

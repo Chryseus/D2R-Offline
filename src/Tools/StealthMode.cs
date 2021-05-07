@@ -30,49 +30,42 @@ namespace D2ROffline.Tools
             Hooks = new List<Hook>();
         }
 
-        public bool StartInjection(string dllPath)
+        public bool Inject(string dllPath)
         {
             byte[] dllBuffer = File.ReadAllBytes(dllPath);
-            StartInjectionProcess(dllBuffer);
+            StartInjectionProcess(dllPath, dllBuffer);
             return true;
         }
 
-        private void StartInjectionProcess(byte[] dllBuffer)
+        private void StartInjectionProcess(string dllPath, byte[] dllBuffer)
         {
             // suspend?
 
             // RemoveDebugPrivileges
 
             // MapModuleToProcess (manual map)
+            ManualMap mm = new ManualMap(Memory);
+            ulong imgBase = mm.InjectImage(dllPath);
 
             ///DWORD hookDllDataAddressRva = GetDllFunctionAddressRVA(dllMemory, "HookDllData")
 
             //StartHooking(dllBuffer, IntPtr.Zero);
 
-           
+            StartHooking(imgBase);
         }
 
-        private bool StartHooking(byte[] dllBuffer, IntPtr imgBase)
+        private bool StartHooking(ulong imgBase)
         {
             ApplyAllPEBPatchs();
-            return ApplyHooks();
+            return ApplyHooks(imgBase);
         }
 
-        private IntPtr NormalDllInjection(string dllPath)
+        private bool ApplyHooks(ulong imgBase)
         {
-            // VirtualAllocEx
-            // WriteProcessMemory
-            // CreateAndWaitForThread -> LoadLibraryW
-            // 
-            return IntPtr.Zero;
-        }
-
-        private bool ApplyHooks()
-        {
-            ApplyNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
-            ApplyKernel32Hooks(Imports.GetModuleHandle("KERNEL32.DLL"));
-            ApplyUserHooks(Imports.GetModuleHandle("KERNEL32.DLL"));
-            ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll"), 0x2000); // TODO: get actual size
+            //ApplyNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
+            //ApplyKernel32Hooks(Imports.GetModuleHandle("KERNEL32.DLL"));
+            //ApplyUserHooks(Imports.GetModuleHandle("KERNEL32.DLL"));
+            ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll"), 0x118000); // TODO: get actual size
 
             return true;
         }
@@ -174,6 +167,15 @@ namespace D2ROffline.Tools
 
         public void ApplyAllPEBPatchs()
         {
+            // PEB only modified at startup?
+
+            IntPtr pebAddress = Memory.GetPebAddress();
+            _PEB peb = Memory.Read<_PEB>(pebAddress);
+            _PEB_LDR_DATA ldr = Memory.Read<_PEB_LDR_DATA>((IntPtr)peb.Ldr);
+            ulong next = (ulong)(pebAddress + Marshal.SizeOf(peb)) + ldr.Length;
+
+            // NOTE: old
+            /*
             //            // copy paste from https://www.pinvoke.net/default.aspx/ntdll.ntqueryinformationprocess
             //            IntPtr pbi = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(PROCESS_BASIC_INFORMATION)));
             //            IntPtr outLong = Marshal.AllocHGlobal(sizeof(long));
@@ -204,7 +206,7 @@ namespace D2ROffline.Tools
             Imports.WriteProcessMemory(Memory.ProcessHandle, pbi.PebBaseAddress, content, content.Length, out _);
 
 
-            /* typedef struct _PEB
+            / * typedef struct _PEB
             {
                 BYTE Reserved1[2]; //0
                 BYTE BeingDebugged; //2

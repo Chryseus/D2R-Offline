@@ -9,9 +9,21 @@ using D2ROffline.Util;
 
 namespace D2ROffline.Tools
 {
-    internal class Patcher
+    public class Patcher
     {
-        public static bool Start(string d2rPath = Constants.DIABLO_MAIN_EXE_FILE_NAME, int crashDelay = 25, string d2rargs = "")
+        private static string ScyllaHidePath = "lib/ScyllaHideGenericPluginx64.dll";
+        private static string HooklibPath = "lib/HookLibraryx64.dll";
+
+        private Memory Memory;
+
+        public Patcher()
+        {
+
+        }
+
+        // TODO: use Memory methodes over Imports
+
+        public bool Start(string d2rPath = Constants.DIABLO_MAIN_EXE_FILE_NAME, int crashDelay = 25, string d2rargs = "")
         {
             if (!File.Exists(d2rPath))
             {
@@ -29,6 +41,7 @@ namespace D2ROffline.Tools
                 Program.ConsolePrint("Extra parameters not found. Proceeding...", ConsoleColor.White); // not to obvious color or ppl may freak out
 
             var d2r = Process.Start(pInfo);
+            Memory = new Memory(d2r);
 
             // wait for proc to properly enter userland to bypass first few anti-cheating checks
             Program.ConsolePrint("Process started...");
@@ -42,7 +55,7 @@ namespace D2ROffline.Tools
             }
 
             // pre setup
-            WaitForData(hProcess, d2r.MainModule.BaseAddress, 0x22D8858);
+            WaitForData(d2r.MainModule.BaseAddress, 0x22D8858);
             Thread.Sleep(crashDelay); // NOTE: getting crash? extend this delay!
 
             // suspend process
@@ -63,13 +76,11 @@ namespace D2ROffline.Tools
                 return false;
             }
 
-            StealthMode m = new StealthMode(new Memory(d2r));
-            ProcessModule ntdll = null;
-            foreach(ProcessModule pm in d2r.Modules)
-                if(pm.ModuleName.Equals("ntdll.dll", StringComparison.OrdinalIgnoreCase))
-                    ntdll = pm;
+            IntPtr regionBase = (IntPtr)basicInformation.BaseAddress;
+            IntPtr regionSize = (IntPtr)basicInformation.RegionSize;
 
-            m.ApplyShadowNtdllHooks(ntdll.BaseAddress, ntdll.ModuleMemorySize);
+            Program.ConsolePrint("Remapping process...");
+            IntPtr addr = RemapMemoryRegion(regionBase, regionSize.ToInt32(), MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
 
             Program.ConsolePrint("Resuming process..");
             Imports.NtResumeProcess(hProcess);
@@ -78,20 +89,20 @@ namespace D2ROffline.Tools
         }
 
         // Memory function
-        public static IntPtr RemapMemoryRegion(IntPtr processHandle, IntPtr baseAddress, int regionSize, MemoryProtectionConstraints mapProtection)
+        public IntPtr RemapMemoryRegion(IntPtr baseAddress, int regionSize, MemoryProtectionConstraints mapProtection)
         {
-            IntPtr addr = Imports.VirtualAllocEx(processHandle, IntPtr.Zero, regionSize, MemoryAllocationType.MEM_COMMIT | MemoryAllocationType.MEM_RESERVE, mapProtection);
+            IntPtr addr = Imports.VirtualAllocEx(Memory.ProcessHandle, IntPtr.Zero, regionSize, MemoryAllocationType.MEM_COMMIT | MemoryAllocationType.MEM_RESERVE, mapProtection);
             if (addr == IntPtr.Zero)
                 return IntPtr.Zero;
 
             IntPtr copyBuf = Imports.VirtualAlloc(IntPtr.Zero, regionSize, MemoryAllocationType.MEM_COMMIT | MemoryAllocationType.MEM_RESERVE, mapProtection);
-            IntPtr copyBufEx = Imports.VirtualAllocEx(processHandle, IntPtr.Zero, regionSize, MemoryAllocationType.MEM_COMMIT | MemoryAllocationType.MEM_RESERVE, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
+            IntPtr copyBufEx = Imports.VirtualAllocEx(Memory.ProcessHandle, IntPtr.Zero, regionSize, MemoryAllocationType.MEM_COMMIT | MemoryAllocationType.MEM_RESERVE, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
             byte[] copyBuf2 = new byte[regionSize];
 
-            if (!Imports.ReadProcessMemory(processHandle, baseAddress, copyBuf, regionSize, out IntPtr bytes))
+            if (!Imports.ReadProcessMemory(Memory.ProcessHandle, baseAddress, copyBuf, regionSize, out IntPtr bytes))
                 return IntPtr.Zero;
 
-            if (!Imports.ReadProcessMemory(processHandle, baseAddress, copyBuf2, regionSize, out bytes))
+            if (!Imports.ReadProcessMemory(Memory.ProcessHandle, baseAddress, copyBuf2, regionSize, out bytes))
                 return IntPtr.Zero;
 
             IntPtr sectionHandle = default;
@@ -102,7 +113,7 @@ namespace D2ROffline.Tools
             if (status != Ntstatus.STATUS_SUCCESS)
                 return IntPtr.Zero;
 
-            status = Imports.NtUnmapViewOfSection(processHandle, baseAddress);
+            status = Imports.NtUnmapViewOfSection(Memory.ProcessHandle, baseAddress);
 
 
             if (status != Ntstatus.STATUS_SUCCESS)
@@ -112,7 +123,7 @@ namespace D2ROffline.Tools
             long sectionOffset = default;
             uint viewSize = 0;
             status = Imports.NtMapViewOfSection(sectionHandle,
-                                               processHandle,
+                                               Memory.ProcessHandle,
                                                ref viewBase,
                                                UIntPtr.Zero,
                                                regionSize,
@@ -125,14 +136,14 @@ namespace D2ROffline.Tools
             if (status != Ntstatus.STATUS_SUCCESS)
                 return IntPtr.Zero;
 
-            if (!Imports.WriteProcessMemory(processHandle, viewBase, copyBuf, (int)viewSize, out bytes))
+            if (!Imports.WriteProcessMemory(Memory.ProcessHandle, viewBase, copyBuf, (int)viewSize, out bytes))
                 return IntPtr.Zero;
 
-            if (!Imports.WriteProcessMemory(processHandle, copyBufEx, copyBuf, (int)viewSize, out bytes))
+            if (!Imports.WriteProcessMemory(Memory.ProcessHandle, copyBufEx, copyBuf, (int)viewSize, out bytes))
                 return IntPtr.Zero;
 
             // apply all request patches
-            ApplyAllPatches(processHandle, baseAddress);
+            ApplyAllPatches(baseAddress);
 
             //crc32 bypass
             //search for F2 ?? 0F 38 F1 - F2 REX.W 0F 38 F1 /r CRC32 r64, r/m64	RM	Valid	N.E.	Accumulate CRC32 on r/m64.
@@ -149,34 +160,37 @@ namespace D2ROffline.Tools
                     }
                 }
                 if (isMatch)
-                    detourCRC(processHandle, (long)baseAddress + i, (long)baseAddress, (long)copyBufEx);
+                    detourCRC((long)baseAddress + i, (long)baseAddress, (long)copyBufEx);
             }
 
-            byte[] patchA = { 0xCC };
-            byte[] patchB = { 0xC3 };
+            
+
+#if DEBUG
+            StealthMode m = new StealthMode(Memory);
+            if(File.Exists(ScyllaHidePath))
+                m.Inject(ScyllaHidePath);
 
             IntPtr DbgBreakpoint = Imports.GetProcAddress(Imports.GetModuleHandle("ntdll.dll"), "DbgBreakPoint");
+            Memory.Write((long)DbgBreakpoint, new byte[] { 0xCC }); // ready for debugger
 
-            //WriteProcessMemory(processHandle, DbgBreakpoint, patchA, patchA.Length, out _);
-
-            // NOTE: uncomment if you want to snitch a hook inside the .text before it remaps back from RWX to RX
-#if DEBUG
-            Program.ConsolePrint("Patching complete..");
+            Program.ConsolePrint("Patching complete, You may want to attach a debugger right now", ConsoleColor.Green);
             Program.ConsolePrint("[!] Press any key to remap and resume proces...", ConsoleColor.Yellow);
             Console.ReadKey();
+
+            Memory.Write((long)DbgBreakpoint, new byte[] { 0xC3 }); // restore to keep anti-cheat happy
 #endif
 
-            //WriteProcessMemory(processHandle, DbgBreakpoint, patchB, patchB.Length, out _);
+
 
             // remap
-            status = Imports.NtUnmapViewOfSection(processHandle, baseAddress);
+            status = Imports.NtUnmapViewOfSection(Memory.ProcessHandle, baseAddress);
 
             if (status != Ntstatus.STATUS_SUCCESS)
                 return IntPtr.Zero;
 
 
             status = Imports.NtMapViewOfSection(sectionHandle,
-                                               processHandle,
+                                               Memory.ProcessHandle,
                                                ref viewBase,
                                                UIntPtr.Zero,
                                                regionSize,
@@ -194,7 +208,7 @@ namespace D2ROffline.Tools
 
             return addr;
         }
-        private static void WaitForData(IntPtr processHandle, IntPtr baseAddress, int offset)
+        private void WaitForData(IntPtr baseAddress, int offset)
         {
             // now waiting for game  to lock in inf loop
             Program.ConsolePrint($"Waiting for data at 0x{(baseAddress + offset).ToString("X8")}...");
@@ -202,7 +216,7 @@ namespace D2ROffline.Tools
             while (count < 500) // 5000ms timeout
             {
                 byte[] buff = new byte[3];
-                if (!Imports.ReadProcessMemory(processHandle, baseAddress + offset, buff, buff.Length, out _)) // pre
+                if (!Imports.ReadProcessMemory(Memory.ProcessHandle, baseAddress + offset, buff, buff.Length, out _)) // pre
                 {
                     Program.ConsolePrint("Failed reading initial process memory", ConsoleColor.Red);
                     continue; // dont break?
@@ -214,7 +228,7 @@ namespace D2ROffline.Tools
                 count++;
             }
         }
-        private static void ApplyAllPatches(IntPtr processHandle, IntPtr baseAddress)
+        private void ApplyAllPatches(IntPtr baseAddress)
         {
             // NOTE: you can make a 'patches.txt' file, using the format '0x1234:9090' where 0x1234 indicates the offset (game.exe+0x1234) and 9090 indicates the patch value (nop nop)
             string patchesContent = "";
@@ -250,7 +264,7 @@ namespace D2ROffline.Tools
                     string offset = data[1].Substring(1);
                     //byte[] buf = new byte[offset.Length / 2]; // amount of bytes in patch len?
                     byte[] buf = new byte[8]; // qword
-                    if (!Imports.ReadProcessMemory(processHandle, IntPtr.Add(baseAddress, addr[i]), buf, buf.Length, out _))
+                    if (!Imports.ReadProcessMemory(Memory.ProcessHandle, IntPtr.Add(baseAddress, addr[i]), buf, buf.Length, out _))
                     {
                         Program.ConsolePrint("Error, failed read patch location!", ConsoleColor.Yellow);
                         continue; // non critical, just skip
@@ -285,12 +299,12 @@ namespace D2ROffline.Tools
                     continue;
                 }
                 Program.ConsolePrint($"Patching 0x{(baseAddress + addr[i]).ToString("X8")}");
-                if (!Imports.WriteProcessMemory(processHandle, IntPtr.Add(baseAddress, addr[i]), patch[i], patch[i].Length, out IntPtr bWritten1) || (int)bWritten1 != patch[i].Length)
+                if (!Imports.WriteProcessMemory(Memory.ProcessHandle, IntPtr.Add(baseAddress, addr[i]), patch[i], patch[i].Length, out IntPtr bWritten1) || (int)bWritten1 != patch[i].Length)
                     Program.ConsolePrint($"Patch {i} failed!!", ConsoleColor.Red);
             }
 
         }
-        public static bool detourCRC(IntPtr processHandle, long crcLocation, long wowBase, long wowCopyBase)
+        public bool detourCRC(long crcLocation, long wowBase, long wowCopyBase)
         {
             #region asmCave
 
@@ -353,7 +367,7 @@ namespace D2ROffline.Tools
             byte[] crcCaveRegInstructOffsets = { 0x0B, 0x29, 0x38, 0x45 }; //register offsets (may need to change when register is used in code)
             #endregion asmCave
 
-            IntPtr CaveAddr = Imports.VirtualAllocEx(processHandle, IntPtr.Zero, crcCave.Length, MemoryAllocationType.MEM_COMMIT, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
+            IntPtr CaveAddr = Imports.VirtualAllocEx(Memory.ProcessHandle, IntPtr.Zero, crcCave.Length, MemoryAllocationType.MEM_COMMIT, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
             if (CaveAddr == IntPtr.Zero)
             {
                 Program.ConsolePrint("VirtualAlloxEx error", ConsoleColor.Red);
@@ -375,7 +389,7 @@ namespace D2ROffline.Tools
 
             //obtain crc instructions
             byte[] crcBuffer = new byte[88];
-            if (!Imports.ReadProcessMemory(processHandle, (IntPtr)crcLocation, crcBuffer, crcBuffer.Length, out IntPtr bRead))
+            if (!Imports.ReadProcessMemory(Memory.ProcessHandle, (IntPtr)crcLocation, crcBuffer, crcBuffer.Length, out IntPtr bRead))
             {
                 Program.ConsolePrint("Reading CRC location failed", ConsoleColor.Red);
                 return false;
@@ -459,12 +473,12 @@ namespace D2ROffline.Tools
                 }
             }
 
-            if (!Imports.WriteProcessMemory(processHandle, (IntPtr)(crcLocation), crcDetourFixed, crcDetourFixed.Length, out IntPtr bWrite))
+            if (!Imports.WriteProcessMemory(Memory.ProcessHandle, (IntPtr)(crcLocation), crcDetourFixed, crcDetourFixed.Length, out IntPtr bWrite))
             {
                 Program.ConsolePrint("Writing CRC detour failed", ConsoleColor.Red);
                 return false;
             }
-            if (!Imports.WriteProcessMemory(processHandle, CaveAddr, crcCave, crcCave.Length, out bWrite))
+            if (!Imports.WriteProcessMemory(Memory.ProcessHandle, CaveAddr, crcCave, crcCave.Length, out bWrite))
             {
                 Program.ConsolePrint("Writing CRC CodeCave failed", ConsoleColor.Red);
                 return false;

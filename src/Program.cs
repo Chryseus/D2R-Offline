@@ -7,7 +7,7 @@ namespace D2ROffline
 {
     public class Program
     {
-        public static string version = "v2.0.9";
+        public static string version = "v3.0.0";
 
         static void Main(string[] args)
         {
@@ -31,6 +31,7 @@ namespace D2ROffline
 
         private static bool HandlerArgs(string[] args)
         {
+            Patcher patcher = new Patcher();
             int crashDelay = 25;
             if (args.Length > 0)
             {
@@ -65,7 +66,7 @@ namespace D2ROffline
                         gameArgs = string.Join(" ", args.Skip(2).Take(args.Length - 2));
                         if (HandleDelayArg(args.ElementAtOrDefault(1), out crashDelay))
                         {
-                            return Patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
+                            return patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
                         }
                         else
                         {
@@ -78,7 +79,7 @@ namespace D2ROffline
                         if (HandleDelayArg(args.ElementAtOrDefault(2), out crashDelay))
                         {
                             gameArgs = string.Join(" ", args.Skip(3).Take(args.Length - 3));
-                            return Patcher.Start(args[0], crashDelay, gameArgs);
+                            return patcher.Start(args[0], crashDelay, gameArgs);
                         }
                         else
                         {
@@ -90,19 +91,19 @@ namespace D2ROffline
                 {
                     // user is specifying game args only
                     gameArgs = string.Join(" ", args.Take(args.Length));
-                    return Patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
+                    return patcher.Start(Constants.DIABLO_MAIN_EXE_FILE_NAME, crashDelay, gameArgs);
                 }
                 else
                 {
                     // user is specifying game.exe path
                     gameArgs = string.Join(" ", args.Skip(1).Take(args.Length - 1));
-                    return Patcher.Start(args[0], crashDelay, gameArgs);
+                    return patcher.Start(args[0], crashDelay, gameArgs);
                 }
             }
             else 
             {
                 // launch with default settings
-                return Patcher.Start();
+                return patcher.Start();
             }
         }
 
@@ -170,7 +171,6 @@ namespace D2ROffline
             Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss.fffff")}]: {str}");
             Console.ForegroundColor = old;
         }
-
         private static bool HandleDelayArg(string delayArg, out int delay) 
         {
             // Handle Delay
@@ -185,6 +185,5 @@ namespace D2ROffline
                 return true;
             }
         }
-
     }
 }

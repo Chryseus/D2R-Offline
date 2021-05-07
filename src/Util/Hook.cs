@@ -195,18 +195,18 @@ namespace D2ROffline.Util
             {
                 // Write the detour
                 Memory.Write(this.HookAddress, GetJumpBytes(this.Address));
-                Console.WriteLine($"Detour for {this.HookAddress.ToString("X")} -> {this.Address.ToString("X")}");
+                Program.ConsolePrint($"Detour for {this.HookAddress.ToString("X")} -> {this.Address.ToString("X")}");
                 return this.Address;
             }
             if (this.HookAddress != -1)
             {
-                
-                Console.WriteLine($"Hooking at {this.HookAddress.ToString("X")} {this.Address.ToString("X")}");
+
+                Program.ConsolePrint($"Hooking at {this.HookAddress.ToString("X")} {this.Address.ToString("X")}");
                 return this.Address;
             }
             else
             {
-                Console.WriteLine($"Looking at {this.HookAddress.ToString("X")} {this.Address.ToString("X")}");
+                Program.ConsolePrint($"Looking at {this.HookAddress.ToString("X")} {this.Address.ToString("X")}");
                 return this.Address; //return the code cave :p
             }
             return -1;
@@ -219,11 +219,11 @@ namespace D2ROffline.Util
         {
             Disable();
             if (!Memory.FreeEx(this.Address))
-                Console.WriteLine($"VirtualFreeEx error {Imports.GetLastError()}");
+                Program.ConsolePrint($"VirtualFreeEx error {Imports.GetLastError()}");
             else
             {
                 this.Address = -1;
-                Console.WriteLine($"Hook has been restored {this.HookAddress.ToString("X")}");
+                Program.ConsolePrint($"Hook has been restored {this.HookAddress.ToString("X")}");
             }
 
         }

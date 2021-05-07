@@ -11,8 +11,8 @@ namespace D2ROffline.Util
 {
     public static unsafe class Toolbox
     {
-        // COULDN'T DO THIS CLEAN, SO I'LL JUST 
-        // HIDE IT HERE FOR NO ONE TO SEE
+        // "COULDN'T DO THIS CLEAN, SO I'LL JUST 
+        // HIDE IT HERE FOR NO ONE TO SEE" ~ Carl Shou
         public static ushort GetRelocationData(void* baseRelocation, int index) =>
             *(ushort*)((long)baseRelocation + Marshal.SizeOf<IMAGE_BASE_RELOCATION>() + sizeof(ushort) * index);
 

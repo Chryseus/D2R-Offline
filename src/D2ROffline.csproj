@@ -78,7 +78,6 @@
     <Compile Include="Tools\Patcher.cs" />
     <Compile Include="Tools\SaveFilePatcher.cs" />
     <Compile Include="Tools\StealthMode.cs" />
-    <Compile Include="Util\ProcessExtensions.cs" />
     <Compile Include="Util\Toolbox.cs" />
   </ItemGroup>
   <ItemGroup>

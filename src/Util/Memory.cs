@@ -61,7 +61,7 @@ namespace D2ROffline.Util
         {
             if (this.TargetProcess.HasExited)
             {
-                Console.WriteLine($"Memory.Read failed, Target process with pid {this.TargetProcess} has exited");
+                Program.ConsolePrint($"Memory.Read failed, Target process with pid {this.TargetProcess} has exited");
                 return null;
             }
 
@@ -69,7 +69,7 @@ namespace D2ROffline.Util
             byte[] buffer = new byte[size];
             Imports.ReadProcessMemory(this.ProcessHandle, (IntPtr)Address, buffer, buffer.Length, out bRead);
             if (bRead.ToInt32() != size)
-                Console.WriteLine("Memory.Read fucked up");
+                Program.ConsolePrint("Memory.Read fucked up");
 
             return buffer;
         }
@@ -113,14 +113,14 @@ namespace D2ROffline.Util
         {
             if (this.TargetProcess.HasExited)
             {
-                Console.WriteLine($"Memory.Write failed, Target process with pid {this.TargetProcess} has exited");
+                Program.ConsolePrint($"Memory.Write failed, Target process with pid {this.TargetProcess} has exited");
                 return false;
             }
 
             IntPtr bWrite = IntPtr.Zero;
             Imports.WriteProcessMemory(this.ProcessHandle, (IntPtr)Address, buffer, buffer.Length, out bWrite);
             if (bWrite.ToInt32() != buffer.Length)
-                Console.WriteLine("Memory.Write fucked up");
+                Program.ConsolePrint("Memory.Write fucked up");
 
             return true;
         }
@@ -220,7 +220,7 @@ namespace D2ROffline.Util
                 {
                     for (int moduleIndex = 0; moduleIndex < cbNeeded / sizeof(ulong); moduleIndex++)
                     {
-                        string name = GetModuleBaseName(moduleHandleArray[moduleIndex]);
+                        string name = GetModuleBaseName(TargetProcess.Handle, moduleHandleArray[moduleIndex]);
 
                         result[name.ToLower()] = moduleHandleArray[moduleIndex];
 
@@ -233,10 +233,10 @@ namespace D2ROffline.Util
             return result;
         }
 
-        public string GetModuleBaseName(ulong moduleHandle)
+        public string GetModuleBaseName(IntPtr handle, ulong moduleHandle)
         {
             StringBuilder name = new StringBuilder(1024);
-            Imports.GetModuleBaseName(ProcessHandle, moduleHandle, name, 1024);
+            Imports.GetModuleBaseName(handle, moduleHandle, name, 1024);
             return name.ToString();
         }
 
