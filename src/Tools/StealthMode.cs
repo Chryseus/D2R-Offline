@@ -12,6 +12,7 @@ namespace D2ROffline.Tools
 {
     public class StealthMode
     {
+        private ManualMap ManualMap;
         private Memory Memory;
         private List<Hook> Hooks;
 
@@ -27,6 +28,7 @@ namespace D2ROffline.Tools
         public StealthMode(Memory m)
         {
             Memory = m;
+            ManualMap = new ManualMap(m);
             Hooks = new List<Hook>();
         }
 
@@ -44,28 +46,23 @@ namespace D2ROffline.Tools
             // RemoveDebugPrivileges
 
             // MapModuleToProcess (manual map)
-            ManualMap mm = new ManualMap(Memory);
-            ulong imgBase = mm.InjectImage(dllPath);
+            
+            ManualMap.InjectImage(dllPath);
 
             ///DWORD hookDllDataAddressRva = GetDllFunctionAddressRVA(dllMemory, "HookDllData")
 
             //StartHooking(dllBuffer, IntPtr.Zero);
 
-            StartHooking(imgBase);
+            ApplyHooks(ManualMap.LocalScylla, ManualMap.RemoteScylla);
         }
 
-        private bool StartHooking(ulong imgBase)
+        private bool ApplyHooks(IntPtr localScylla, IntPtr remoteScylla)
         {
-            ApplyAllPEBPatchs();
-            return ApplyHooks(imgBase);
-        }
-
-        private bool ApplyHooks(ulong imgBase)
-        {
+            //ApplyAllPEBPatchs(); // TODO: fix
             //ApplyNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
             //ApplyKernel32Hooks(Imports.GetModuleHandle("KERNEL32.DLL"));
             //ApplyUserHooks(Imports.GetModuleHandle("KERNEL32.DLL"));
-            ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll"), 0x118000); // TODO: get actual size
+            ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll")); // TODO: get actual size
 
             return true;
         }
@@ -97,7 +94,7 @@ namespace D2ROffline.Tools
             }
         }
 
-        public void ApplyShadowNtdllHooks(IntPtr ntdllBase, int ntdllSize)
+        public void ApplyShadowNtdllHooks(IntPtr ntdllBase)
         {
             IntPtr regionBase = IntPtr.Zero;
             IntPtr regionSize = IntPtr.Zero;
@@ -116,7 +113,8 @@ namespace D2ROffline.Tools
                 if (!basicInformation.Protect.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE) && (long)basicInformation.RegionSize > (0x1000 + byteSample.Length))
                     continue;
 
-                byte[] shadowNtdllSample = Memory.Read(address+0x400, 32); // NOTE: shadow ntdll starts at 0x400
+                // NOTE: shadow ntdll starts at 0x400
+                byte[] shadowNtdllSample = Memory.Read(address+0x400, 32); 
 
                 bool match = true;
                 for (int i = 0; i < shadowNtdllSample.Length && i < byteSample.Length; i++)
@@ -130,7 +128,8 @@ namespace D2ROffline.Tools
                     continue;
 
                 // Find copy of ntdll function
-                byte[] shadowNtdll = Memory.Read(address, ntdllSize); // NOTE: shadow ntdll starts at 0x400
+                Toolbox.GetImageHeaders((ulong)ManualMap.LocalScylla, out _, out _, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+                byte[] shadowNtdll = Memory.Read(address, (int)optionalHeader.SizeOfImage-0xC00); // size matter?
                 for (int i = 0; i < NtdllHooks.Length; i++)
                 {
                     IntPtr jmpAddr = Imports.GetProcAddress(ntdllBase, NtdllHooks[i]);
@@ -150,7 +149,7 @@ namespace D2ROffline.Tools
                             continue;
 
                         // Match found!
-                        Console.WriteLine($"0x{(address + j).ToString("X12")}: JMP -> 0x{jmpAddr.ToString("X12")} ({NtdllHooks[i]})");
+                        Program.ConsolePrint($"0x{(address + j).ToString("X12")}: JMP -> 0x{jmpAddr.ToString("X12")} ({NtdllHooks[i]})");
 
                         // TODO: reaplce jmpAddr with NtdllHooks[i] hook
                         Hook newHook = new Hook(Memory, address.ToInt64() + j, jmpAddr.ToInt64(), 14);

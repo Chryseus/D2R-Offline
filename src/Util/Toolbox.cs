@@ -20,15 +20,60 @@ namespace D2ROffline.Util
         public static IMAGE_SECTION_HEADER* GetFirstSection(ulong localImage, IMAGE_DOS_HEADER dosHeader) =>
             (IMAGE_SECTION_HEADER*)(localImage + (uint)dosHeader.e_lfanew/*START OF NTHEADER*/ + (uint)Marshal.SizeOf<IMAGE_NT_HEADERS>());
 
+        public static void GetImageHeaders(ulong localImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader)
+        {
+            dosHeader = *(IMAGE_DOS_HEADER*)localImage;
+            IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)(localImage + (ulong)dosHeader.e_lfanew);
+            fileHeader = ntHeader->FileHeader;
+            optionalHeader = ntHeader->OptionalHeader;
+        }
+
         public static void GetImageHeaders(byte[] rawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader)
         {
-            fixed (byte* imagePointer = &rawImage[0])
+            fixed(byte* imagePointer = &rawImage[0])
             {
                 dosHeader = *(IMAGE_DOS_HEADER*)imagePointer;
-                IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)(imagePointer + dosHeader.e_lfanew);
+                IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)(imagePointer + (ulong)dosHeader.e_lfanew);
                 fileHeader = ntHeader->FileHeader;
                 optionalHeader = ntHeader->OptionalHeader;
             }
+        }
+
+        public static IntPtr GetDllFunctionAddressRVA(ulong localImage, string funcName)
+        {
+            GetImageHeaders(localImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+
+            uint exportDirRVA = optionalHeader.ExportTable.VirtualAddress;
+            uint exportDirOffset = RVAToOffset(localImage, dosHeader, fileHeader, exportDirRVA);
+
+            IMAGE_EXPORT_DIRECTORY exportDir = *(IMAGE_EXPORT_DIRECTORY*)(localImage + exportDirOffset);
+            int addressOfFunctionsArray = (int)(exportDir.AddressOfFunctions - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
+            int addressOfNamesArray = (int)(exportDir.AddressOfNames - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
+            int addressOfNameOrdinalsArray = (int)(exportDir.AddressOfNameOrdinals - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
+            for (int i = 0; i < exportDir.NumberOfNames; i++)
+            {
+                //string functionName = (char*)(addressOfNamesArray)
+            }
+
+            return IntPtr.Zero;
+        }
+
+        public static uint RVAToOffset(ulong localImage, IMAGE_DOS_HEADER dosHeader, IMAGE_FILE_HEADER fileHeader, uint dwRVA)
+        {
+            IMAGE_SECTION_HEADER* sections = GetFirstSection(localImage, dosHeader);
+            for (int i = 0; i < fileHeader.NumberOfSections; i++)
+            {
+                if (sections[i].VirtualAddress <= dwRVA)
+                {
+                    if(sections[i].VirtualAddress + sections[i].VirtualSize > dwRVA)
+                    {
+                        dwRVA -= sections[i].VirtualAddress;
+                        dwRVA -= sections[i].PointerToRawData;
+                        return dwRVA;
+                    }
+                }
+            }
+            return 0;
         }
 
         public static string FindDll(string imageName)

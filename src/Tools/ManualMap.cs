@@ -14,6 +14,8 @@ namespace D2ROffline.Tools
     public unsafe class ManualMap
     {
         public Memory Memory;
+        public IntPtr LocalScylla;
+        public IntPtr RemoteScylla;
 
         private Dictionary<string, ulong> MappedModules = new Dictionary<string, ulong>(StringComparer.InvariantCultureIgnoreCase);
         private Dictionary<string, byte[]> MappedRawImages = new Dictionary<string, byte[]>(StringComparer.InvariantCultureIgnoreCase);
@@ -35,7 +37,7 @@ namespace D2ROffline.Tools
 
             Program.ConsolePrint($"Remote Image {remoteImage.ToString("x2")}");
 
-            CallEntrypoint(rawImage, remoteImage);
+            CallEntrypoint(remoteImage);
 
             return remoteImage;
         }
@@ -86,15 +88,19 @@ namespace D2ROffline.Tools
             this.WriteImageSections(rawImage, dosHeader, (ulong)localImage, fileHeader.NumberOfSections);
             this.RelocateImageByDelta((ulong)localImage, (ulong)remoteImage, optionalHeader);
             this.FixImportTable((ulong)localImage, optionalHeader);
-            
-            // TODO: unmap localImage??
 
-            return (ulong)remoteImage;
+            // unmpa ours
+            //Imports.NtUnmapViewOfSection((IntPtr)sectionHandle, localImage);
+
+            // save ptrs
+            LocalScylla = localImage; 
+            LocalScylla = remoteImage; 
+            return (ulong)remoteImage; // return remote
         }
-        public void CallEntrypoint(byte[] rawImage, ulong moduleHandle)
+        public void CallEntrypoint(ulong moduleHandle)
         {
             // GET HEADERS
-            Toolbox.GetImageHeaders(rawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+            Toolbox.GetImageHeaders(moduleHandle, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
 
             // GET DLLMAIN
             ulong entrypoint = moduleHandle + optionalHeader.AddressOfEntryPoint;
@@ -128,7 +134,7 @@ namespace D2ROffline.Tools
             callDllMain.Create();
             Memory.BypassCRT(true);
             Memory.CRT((IntPtr)callDllMain.Address);
-            Thread.Sleep(50);
+            Thread.Sleep(100);
             Memory.BypassCRT(false);
             //Thread.Sleep(2000); // waitForObject?
             //callDllMain.Dispose();
@@ -146,7 +152,6 @@ namespace D2ROffline.Tools
                 {
                     ulong localSectionPointer = localImage + sections[index].VirtualAddress;
                     Marshal.Copy(rawImage, (int)sections[index].PointerToRawData, (IntPtr)localSectionPointer, (int)sections[index].SizeOfRawData);
-                    //Log.LogInfo($"{sections[index].SectionName} - {sections[index].SizeOfRawData}");
                 }
             }
         }
