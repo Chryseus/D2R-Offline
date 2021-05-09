@@ -63,6 +63,16 @@ namespace D2ROffline.Tools
             Imports.NtSuspendProcess(hProcess);
             Program.ConsolePrint("Process suspended");
 
+            // Game will exit when other games are open, try to kill?
+            Process[] gameProcess = Process.GetProcessesByName(d2r.MainModule.ModuleName);
+            foreach(var gp in gameProcess)
+            {
+                if (gp.Id == d2r.Id)
+                    continue; // lets not kill ours
+                Program.ConsolePrint($"Killing {gp.MainModule.ModuleName} with PID: {gp.Id.ToString("X")}", ConsoleColor.Yellow);
+                gp.Kill();
+            }
+
             X509Certificate data = X509Certificate.CreateFromSignedFile(d2rPath);
             if(!data.Subject.Contains(" Entertainment, "))
             {
@@ -87,6 +97,9 @@ namespace D2ROffline.Tools
 
 #if DEBUG
             Program.ConsolePrint("Patching complete, You may want to attach a debugger right now and press a key once attached!", ConsoleColor.Green);
+            Thread.Sleep(1500);
+            Imports.SetForegroundWindow(Process.GetCurrentProcess().MainWindowHandle);
+            Program.ConsolePrint("[!] Press any key to continue...", ConsoleColor.Yellow);
             Console.ReadKey();
 
             IntPtr DbgBreakpoint = Imports.GetProcAddress(Imports.GetModuleHandle("ntdll.dll"), "DbgBreakPoint");
@@ -184,6 +197,7 @@ namespace D2ROffline.Tools
             m.ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
 
             Program.ConsolePrint("[!] Press any key to remap and resume proces...", ConsoleColor.Yellow);
+            Imports.SetForegroundWindow(Process.GetCurrentProcess().MainWindowHandle);
             Console.ReadKey();
 #endif
 

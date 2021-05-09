@@ -98,9 +98,14 @@ namespace D2ROffline.Util
         [DllImport("kernel32", SetLastError = true)]
         public static extern ulong GetProcAddress(ulong hModule, ulong procName);
 
+
+        [DllImport("user32.dll")]
+        public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     }
-
-
 
     [Flags]
     public enum FreeType

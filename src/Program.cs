@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using D2ROffline.Tools;
+using D2ROffline.Util;
 
 namespace D2ROffline
 {
@@ -11,6 +13,9 @@ namespace D2ROffline
 
         static void Main(string[] args)
         {
+            // Force foreground?
+            Imports.SetWindowPos(Process.GetCurrentProcess().MainWindowHandle, new IntPtr(-1), 0, 0, 0, 0, 0x0040 | 0x0002 | 0x0001);
+
             // print ASCII logo (PNG's are overrated, change my mind)
             PrintASCIIArt();
 
@@ -146,7 +151,7 @@ namespace D2ROffline
                 buffer += Diablo2ASCII[i];
             }
             Console.WriteLine(buffer);
-
+            
             // print footer
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write($"			                                       _____  _______ _______ ____" +
