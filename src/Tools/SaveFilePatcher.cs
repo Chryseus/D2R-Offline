@@ -6,7 +6,7 @@ namespace D2ROffline.Tools
 {
     internal class SaveFilePatcher : NativeMethods
     {
-        public static void PatchSaveFiles(string saveFileName, bool completeQuests)
+        public static void PatchSaveFiles(string saveFileName, bool completeQuests, bool resetQuests = false)
         {
             Program.ConsolePrint("Patching save files...");
 
@@ -31,7 +31,7 @@ namespace D2ROffline.Tools
             {
                 searchPattern = "*" + Constants.DIABLO_SAVE_FILE_EXTENSION;
             }
-            else 
+            else
             {
                 searchPattern = saveFileName + Constants.DIABLO_SAVE_FILE_EXTENSION;
             }
@@ -46,11 +46,11 @@ namespace D2ROffline.Tools
 
             foreach (string saveFileAbsolutePath in saveFiles)
             {
-                ProcessSaveFile(saveFileAbsolutePath, completeQuests);
+                ProcessSaveFile(saveFileAbsolutePath, completeQuests, resetQuests);
             }
         }
 
-        private static void ProcessSaveFile(string saveFileAbsolutePath, bool completeQuests)
+        private static void ProcessSaveFile(string saveFileAbsolutePath, bool completeQuests, bool resetQuests)
         {
             string saveFileName = Path.GetFileName(saveFileAbsolutePath);
             byte[] rawSaveFile = File.ReadAllBytes(saveFileAbsolutePath);
@@ -58,10 +58,15 @@ namespace D2ROffline.Tools
             File.WriteAllBytes(saveFileAbsolutePath + ".backup", rawSaveFile);
             Program.ConsolePrint($"Backup for {saveFileName} created");
 
-            if (completeQuests == true)
-            { 
+            if (completeQuests)
+            {
                 EnableAllWaypoints(rawSaveFile);
-                CompleteGame(rawSaveFile);
+                CompleteGame(true, rawSaveFile);
+            } 
+            else if (resetQuests)
+            {
+                EnableAllWaypoints(rawSaveFile);
+                CompleteGame(false, rawSaveFile);
             }
 
             SetDifficulty(rawSaveFile);
@@ -76,7 +81,7 @@ namespace D2ROffline.Tools
         {
             for (int difficulty = 0; difficulty < 3; difficulty++)
             {
-                int firstWpOffset = Constants.WAYPOINTS_SECTION_OFFSET + 
+                int firstWpOffset = Constants.WAYPOINTS_SECTION_OFFSET +
                     (Constants.WAYPOINTS_DATA_OFFSET + difficulty * Constants.WAYPOINTS_DIFFICULTY_OFFSET);
                 rawSaveFile[firstWpOffset + 2] = 0xFF;
                 rawSaveFile[firstWpOffset + 3] = 0xFF;
@@ -114,9 +119,9 @@ namespace D2ROffline.Tools
             ChangeQuests(Constants.Difficulty.Hell, complete, rawSaveFile);
         }
 
-        private static void CompleteGame(byte[] rawSaveFile) 
+        private static void CompleteGame(bool complete, byte[] rawSaveFile)
         {
-            ChangeQuests(true, rawSaveFile);
+            ChangeQuests(complete, rawSaveFile);
         }
 
         private static void SetDifficulty(byte[] rawSaveFile)

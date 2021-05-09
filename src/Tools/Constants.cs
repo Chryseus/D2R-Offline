@@ -3,6 +3,7 @@
     internal class Constants
     {
         public const int GAME_COMPLETED_ON_HELL = 0x0F;
+        public const int GAME_NOT_COMPLETED = 0x00;
 
         public const int CHARACTER_PROGRESSION_OFFSET = 0x25;
         public const int CHECKSUM_OFFSET = 0x0C;

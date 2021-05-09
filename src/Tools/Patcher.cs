@@ -11,66 +11,84 @@ namespace D2ROffline.Tools
     {
         public static bool Start(string d2rPath = Constants.DIABLO_MAIN_EXE_FILE_NAME, int crashDelay = 25, string d2rargs = "")
         {
-            if (!File.Exists(d2rPath))
+            try
             {
-                Program.ConsolePrint($"Error, file '{d2rPath}' does not exist!", ConsoleColor.Red);
-                Program.ConsolePrint("Usage: D2ROffline.exe PATH_TO_GAMEDOTEXE", ConsoleColor.White);
-                return false;
+                if (!File.Exists(d2rPath))
+                {
+                    Program.ConsolePrint($"Error, file '{d2rPath}' does not exist!", ConsoleColor.Red);
+                    Program.ConsolePrint("Usage: D2ROffline.exe PATH_TO_GAMEDOTEXE", ConsoleColor.White);
+                    return false;
+                }
+
+                Program.ConsolePrint("Launching game...");
+                var pInfo = new ProcessStartInfo(d2rPath);
+
+                if (d2rargs != "")
+                    pInfo.Arguments = d2rargs;
+                else
+                    Program.ConsolePrint("Extra parameters not found. Proceeding...", ConsoleColor.White); // not to obvious color or ppl may freak out
+
+                var d2r = Process.Start(pInfo);
+
+                // wait for proc to properly enter userland to bypass first few anti-cheating checks
+                Program.ConsolePrint("Process started...");
+                IntPtr hProcess = OpenProcess(ProcessAccessFlags.PROCESS_ALL_ACCESS, false, d2r.Id);
+                Program.ConsolePrint("Opening process...");
+
+                if (hProcess == IntPtr.Zero)
+                {
+                    Program.ConsolePrint("Failed on OpenProcess. Handle is invalid.", ConsoleColor.Red);
+                    return false;
+                }
+
+                // pre setup
+                WaitForData(hProcess, d2r.MainModule.BaseAddress, 0x22D8858);
+                Thread.Sleep(crashDelay); // NOTE: getting crash? extend this delay!
+
+                // suspend process
+                Program.ConsolePrint("Suspending process...");
+                NtSuspendProcess(hProcess);
+                Program.ConsolePrint("Process suspended");
+
+                X509Certificate data = X509Certificate.CreateFromSignedFile(d2rPath);
+                if (!data.Subject.Contains(" Entertainment, "))
+                {
+                    Program.ConsolePrint("Error, the target process is not a game?");
+                    return false;
+                }
+
+                if (VirtualQueryEx(hProcess, d2r.MainModule.BaseAddress, out MEMORY_BASIC_INFORMATION basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION))) == 0)
+                {
+                    Program.ConsolePrint("Failed on VirtualQueryEx. Return is 0 bytes.", ConsoleColor.Red);
+                    return false;
+                }
+
+                IntPtr regionBase = basicInformation.baseAddress;
+                IntPtr regionSize = basicInformation.regionSize;
+
+                Program.ConsolePrint("Remapping process..");
+                IntPtr addr = RemapMemoryRegion(hProcess, regionBase, regionSize.ToInt32(), MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
+
+                Program.ConsolePrint("Resuming process..");
+                NtResumeProcess(hProcess);
+                CloseHandle(hProcess);
+                return true;
             }
-
-            Program.ConsolePrint("Launching game...");
-            var pInfo = new ProcessStartInfo(d2rPath);
-
-            if (d2rargs != "")
-                pInfo.Arguments = d2rargs;
-            else
-                Program.ConsolePrint("Extra parameters not found. Proceeding...", ConsoleColor.White); // not to obvious color or ppl may freak out
-
-            var d2r = Process.Start(pInfo);
-
-            // wait for proc to properly enter userland to bypass first few anti-cheating checks
-            Program.ConsolePrint("Process started...");
-            IntPtr hProcess = OpenProcess(ProcessAccessFlags.PROCESS_ALL_ACCESS, false, d2r.Id);
-            Program.ConsolePrint("Opening process...");
-
-            if (hProcess == IntPtr.Zero)
+            catch (Exception)
             {
-                Program.ConsolePrint("Failed on OpenProcess. Handle is invalid.", ConsoleColor.Red);
-                return false;
+                var keyInfo = Console.ReadKey();
+                if (keyInfo.Key == ConsoleKey.Escape)
+                    return false;
+
+                try
+                {
+                    return Start(d2rPath, crashDelay, d2rargs);
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
             }
-
-            // pre setup
-            WaitForData(hProcess, d2r.MainModule.BaseAddress, 0x22D8858);
-            Thread.Sleep(crashDelay); // NOTE: getting crash? extend this delay!
-
-            // suspend process
-            Program.ConsolePrint("Suspending process...");
-            NtSuspendProcess(hProcess);
-            Program.ConsolePrint("Process suspended");
-
-            X509Certificate data = X509Certificate.CreateFromSignedFile(d2rPath);
-            if(!data.Subject.Contains(" Entertainment, "))
-            {
-                Program.ConsolePrint("Error, the target process is not a game?");
-                return false;
-            }
-
-            if (VirtualQueryEx(hProcess, d2r.MainModule.BaseAddress, out MEMORY_BASIC_INFORMATION basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION))) == 0)
-            {
-                Program.ConsolePrint("Failed on VirtualQueryEx. Return is 0 bytes.", ConsoleColor.Red);
-                return false;
-            }
-
-            IntPtr regionBase = basicInformation.baseAddress;
-            IntPtr regionSize = basicInformation.regionSize;
-
-            Program.ConsolePrint("Remapping process..");
-            IntPtr addr = RemapMemoryRegion(hProcess, regionBase, regionSize.ToInt32(), MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE);
-
-            Program.ConsolePrint("Resuming process..");
-            NtResumeProcess(hProcess);
-            CloseHandle(hProcess);
-            return true;
         }
 
         // Memory function
@@ -266,7 +284,7 @@ namespace D2ROffline.Tools
                 }
 
                 bytePatchCount += patch.Length;
-                if(bytePatchCount > 200) // NOTE: this is to prevent people from inject asm malware payloads using the patches.txt feature
+                if (bytePatchCount > 200) // NOTE: this is to prevent people from inject asm malware payloads using the patches.txt feature
                 {
                     Program.ConsolePrint($"Patch 0x{(baseAddress + addr[i]).ToString("X8")} reject, maximum patch sized reached!", ConsoleColor.Red);
                     continue;

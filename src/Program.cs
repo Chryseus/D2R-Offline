@@ -14,7 +14,7 @@ namespace D2ROffline
             // print ASCII logo (PNG's are overrated, change my mind)
             PrintASCIIArt();
 
-            // arguemnts logic
+            // arguments logic
             if (!HandlerArgs(args))
             {
                 ConsolePrint("Press any key to exit...", ConsoleColor.Yellow);
@@ -23,10 +23,9 @@ namespace D2ROffline
             }
 
             ConsolePrint("Done!", ConsoleColor.Green);
-#if !DEBUG
             ConsolePrint("Press any key to exit...", ConsoleColor.Yellow);
             Console.ReadKey();
-#endif
+            return;
         }
 
         private static bool HandlerArgs(string[] args)
@@ -37,19 +36,25 @@ namespace D2ROffline
                 string gameArgs;
                 if (args[0].Equals("-FixLocalSave", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    // hande FixLocalSave
-                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), true);
+                    // handle FixLocalSave
+                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), true, false);
                     return true;
                 }
                 else if (args[0].Equals("-FixLocalSaveNoQuests", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    // hande FixLocalSave
-                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), false);
+                    // handle FixLocalSave
+                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), false, true);
+                    return true;
+                }
+                else if (args[0].Equals("-FixLocalSaveResetQuests", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // handle FixLocalSave
+                    SaveFilePatcher.PatchSaveFiles(args.ElementAtOrDefault(1), false, false);
                     return true;
                 }
                 else if (args[0].Equals("-UpdateKeyBinds", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    // hande UpdateKeyBinds
+                    // handle UpdateKeyBinds
                     KeyBindingSync.SyncKeyBindings(args.ElementAtOrDefault(1));
                     return false;
                 }
@@ -99,7 +104,7 @@ namespace D2ROffline
                     return Patcher.Start(args[0], crashDelay, gameArgs);
                 }
             }
-            else 
+            else
             {
                 // launch with default settings
                 return Patcher.Start();
@@ -171,7 +176,7 @@ namespace D2ROffline
             Console.ForegroundColor = old;
         }
 
-        private static bool HandleDelayArg(string delayArg, out int delay) 
+        private static bool HandleDelayArg(string delayArg, out int delay)
         {
             // Handle Delay
             if (!int.TryParse(delayArg, out delay))
