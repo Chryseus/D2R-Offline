@@ -12,12 +12,12 @@ namespace D2ROffline.Tools
 {
     public class StealthMode
     {
-        private ManualMap ManualMap;
+        private ManualMap ScyllaMap;
         private Memory Memory;
         private List<Hook> Hooks;
 
         static private string[] NtdllHooks = { "NtSetInformationThread", "NtSetDebugFilterState", "NtQuerySystemInformation", "NtQueryInformationProcess", "NtSetInformationProcess",
-            "NtQueryObject", "NtYieldExecution", "NtCreateThreadEx", "NtClose", "NtGetContextThread", "NtSetContextThread", "NtContinue", "KiUserExceptionDispatcher", 
+            "NtQueryObject", /*"NtYieldExecution",*/ "NtCreateThreadEx", "NtClose", "NtGetContextThread", "NtSetContextThread", "NtContinue", "KiUserExceptionDispatcher", 
             "NtQuerySystemTime", "NtResumeThread", "NtQueryPerformanceCounter", "NtDuplicateObject", "NtCreateThread"};
         static private string[] Kernel32Hooks = { "GetTickCount", "GetTickCount64", "GetLocalTime", "GetSystemTime", "OutputDebugStringA" };
 
@@ -28,7 +28,7 @@ namespace D2ROffline.Tools
         public StealthMode(Memory m)
         {
             Memory = m;
-            ManualMap = new ManualMap(m);
+            ScyllaMap = new ManualMap(m);
             Hooks = new List<Hook>();
         }
 
@@ -41,28 +41,21 @@ namespace D2ROffline.Tools
 
         private void StartInjectionProcess(string dllPath, byte[] dllBuffer)
         {
-            // suspend?
-
-            // RemoveDebugPrivileges
-
-            // MapModuleToProcess (manual map)
-            
-            ManualMap.InjectImage(dllPath);
-
-            ///DWORD hookDllDataAddressRva = GetDllFunctionAddressRVA(dllMemory, "HookDllData")
-
-            //StartHooking(dllBuffer, IntPtr.Zero);
-
-            ApplyHooks(ManualMap.LocalScylla, ManualMap.RemoteScylla);
+            //ScyllaMap.InjectImage(dllPath); // TODO: Fix
+            ApplyHooks();
         }
 
-        private bool ApplyHooks(IntPtr localScylla, IntPtr remoteScylla)
+        private bool ApplyHooks()
         {
             //ApplyAllPEBPatchs(); // TODO: fix
             //ApplyNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
             //ApplyKernel32Hooks(Imports.GetModuleHandle("KERNEL32.DLL"));
-            //ApplyUserHooks(Imports.GetModuleHandle("KERNEL32.DLL"));
-            ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll")); // TODO: get actual size
+            //ApplyUserHooks(Imports.GetModuleHandle("win32u.dll"));
+            //ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll")); // TODO: get actual size
+
+            // init all hooks
+            foreach (var h in Hooks)
+                h.Create();
 
             return true;
         }
@@ -71,7 +64,7 @@ namespace D2ROffline.Tools
         {
             foreach(string name in NtdllHooks)
             {
-                long addrOfDVA = -1;
+                long addrOfDVA = (long)((long)ScyllaMap.RemoteImage + Toolbox.GetDllFunctionAddressRVA(ScyllaMap.RawImage, (ulong)ScyllaMap.LocalImage, "Hooked" + name));
                 Hooks.Add(new Hook(Memory, Imports.GetProcAddress(imageBase, name).ToInt64(), addrOfDVA, 14));
             }
         }
@@ -80,18 +73,39 @@ namespace D2ROffline.Tools
         {
             foreach (string name in Kernel32Hooks)
             {
-                long addrOfDVA = -1;
+                long addrOfDVA = (long)((long)ScyllaMap.RemoteImage + Toolbox.GetDllFunctionAddressRVA(ScyllaMap.RawImage, (ulong)ScyllaMap.LocalImage, "Hooked" + name));
                 Hooks.Add(new Hook(Memory, Imports.GetProcAddress(imageBase, name).ToInt64(), addrOfDVA, 14));
             }
         }
 
         private void ApplyUserHooks(IntPtr imageBase)
         {
-            foreach (string name in UserHooks)
-            {
-                long addrOfDVA = -1;
-                Hooks.Add(new Hook(Memory, Imports.GetProcAddress(imageBase, name).ToInt64(), addrOfDVA, 14));
-            }
+            ////string name = "NtUserBuildHwndList";
+            ////long addrOfDVA = (long)((long)ScyllaMap.RemoteImage + Toolbox.GetDllFunctionAddressRVA(ScyllaMap.RawImage, (ulong)ScyllaMap.LocalImage, "Hooked" + name));
+
+            ////List<byte> shellCode = new List<byte>() {
+            ////    0x90,
+            ////    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00
+            ////};
+            ////shellCode.Add()
+            ////    //
+            //////Hooks.Add(
+            ////new Hook(
+            ////    Memory,
+            ////    new byte[] { 0x90 },
+            ////    Imports.GetProcAddress(imageBase, name).ToInt64(),
+            ////    new List<long>(),
+            ////    new List<long>(),
+            ////    8,
+            ////    true
+            ////).Create();
+            //////); // JMP addrOfDVA
+
+            //foreach (string name in UserHooks)
+            //{
+            //    long addrOfDVA = (long)((long)ScyllaMap.RemoteImage + Toolbox.GetDllFunctionAddressRVA(ScyllaMap.RawImage, (ulong)ScyllaMap.LocalImage, "Hooked" + name));
+            //    Hooks.Add(new Hook(Memory, Imports.GetProcAddress(imageBase, name).ToInt64(), addrOfDVA, 14));
+            //}
         }
 
         public void ApplyShadowNtdllHooks(IntPtr ntdllBase)
@@ -108,9 +122,13 @@ namespace D2ROffline.Tools
             do
             {
                 IntPtr address = (IntPtr)nextAddr;
-                status = Imports.VirtualQueryEx(Memory.ProcessHandle, (IntPtr)nextAddr, out basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION)));
+                status = Imports.VirtualQueryEx(Memory.ProcessHandle, address, out basicInformation, Marshal.SizeOf(typeof(MEMORY_BASIC_INFORMATION)));
                 nextAddr += (long)basicInformation.RegionSize;
-                if (!basicInformation.Protect.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE) && (long)basicInformation.RegionSize > (0x1000 + byteSample.Length))
+
+                // NOTE: something funny going on here
+                if (basicInformation.Protect != 0x40)  //.Equals(MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE))
+                    continue;
+                if(basicInformation.RegionSize < 0x1000)
                     continue;
 
                 // NOTE: shadow ntdll starts at 0x400
@@ -128,8 +146,8 @@ namespace D2ROffline.Tools
                     continue;
 
                 // Find copy of ntdll function
-                Toolbox.GetImageHeaders((ulong)ManualMap.LocalScylla, out _, out _, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
-                byte[] shadowNtdll = Memory.Read(address, (int)optionalHeader.SizeOfImage-0xC00); // size matter?
+                //Toolbox.GetImageHeaders(ScyllaMap.RawImage, out _, out _, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+                byte[] shadowNtdll = Memory.Read(address, (int)basicInformation.RegionSize); // size matter?
                 for (int i = 0; i < NtdllHooks.Length; i++)
                 {
                     IntPtr jmpAddr = Imports.GetProcAddress(ntdllBase, NtdllHooks[i]);
@@ -151,10 +169,9 @@ namespace D2ROffline.Tools
                         // Match found!
                         Program.ConsolePrint($"0x{(address + j).ToString("X12")}: JMP -> 0x{jmpAddr.ToString("X12")} ({NtdllHooks[i]})");
 
-                        // TODO: reaplce jmpAddr with NtdllHooks[i] hook
+                        // TODO: reaplce jmpAddr with NtdllHooks[i] hook?
                         Hook newHook = new Hook(Memory, address.ToInt64() + j, jmpAddr.ToInt64(), 14);
                         newHook.Create();
-                        Hooks.Add(newHook);
                         break;
                     }
                 }

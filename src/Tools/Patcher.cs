@@ -84,6 +84,17 @@ namespace D2ROffline.Tools
 
             Program.ConsolePrint("Resuming process..");
             Imports.NtResumeProcess(hProcess);
+
+#if DEBUG
+            Program.ConsolePrint("Patching complete, You may want to attach a debugger right now and press a key once attached!", ConsoleColor.Green);
+            Console.ReadKey();
+
+            IntPtr DbgBreakpoint = Imports.GetProcAddress(Imports.GetModuleHandle("ntdll.dll"), "DbgBreakPoint");
+            Imports.VirtualProtectEx(Memory.ProcessHandle, DbgBreakpoint, 1, MemoryProtectionConstraints.PAGE_EXECUTE_READWRITE, out MemoryProtectionConstraints oldProtection);
+            Memory.Write((long)DbgBreakpoint, new byte[] { 0xC3 }); // restore to keep anti-cheat happy
+            Imports.VirtualProtectEx(Memory.ProcessHandle, DbgBreakpoint, 1, oldProtection, out _);
+#endif
+
             Imports.CloseHandle(hProcess);
             return true;
         }
@@ -167,17 +178,13 @@ namespace D2ROffline.Tools
 
 #if DEBUG
             StealthMode m = new StealthMode(Memory);
-            if(File.Exists(ScyllaHidePath))
-                m.Inject(ScyllaHidePath);
+            // TODO: implement ScyllaHide ourself (so I can use Cheat Engine instead of x64dbg ;))
+            //if(File.Exists(HooklibPath))
+            //    m.Inject(HooklibPath);
+            m.ApplyShadowNtdllHooks(Imports.GetModuleHandle("ntdll.dll"));
 
-            IntPtr DbgBreakpoint = Imports.GetProcAddress(Imports.GetModuleHandle("ntdll.dll"), "DbgBreakPoint");
-            Memory.Write((long)DbgBreakpoint, new byte[] { 0xCC }); // ready for debugger
-
-            Program.ConsolePrint("Patching complete, You may want to attach a debugger right now", ConsoleColor.Green);
             Program.ConsolePrint("[!] Press any key to remap and resume proces...", ConsoleColor.Yellow);
             Console.ReadKey();
-
-            Memory.Write((long)DbgBreakpoint, new byte[] { 0xC3 }); // restore to keep anti-cheat happy
 #endif
 
 

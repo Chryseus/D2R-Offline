@@ -7,7 +7,7 @@ namespace D2ROffline
 {
     public class Program
     {
-        public static string version = "v3.0.0";
+        public static string version = "v2.1.0";
 
         static void Main(string[] args)
         {

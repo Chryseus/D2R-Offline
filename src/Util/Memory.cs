@@ -277,17 +277,5 @@ namespace D2ROffline.Util
             Write(ldrData, (IntPtr)peb.Ldr);
         }
 
-        public IntPtr GetDllFunctionAddressRVA(byte[] dllMemmory, ulong localImage, string funcName)
-        {
-            Toolbox.GetImageHeaders(dllMemmory, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
-
-            uint exportDirRVA = optionalHeader.ExportTable.VirtualAddress;
-            uint exportDirOffset = Toolbox.RVAToOffset(-1, dosHeader, fileHeader, exportDirRVA);
-
-            return IntPtr.Zero;
-        }
-
-
-
     }
 }

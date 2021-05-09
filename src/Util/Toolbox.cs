@@ -20,13 +20,13 @@ namespace D2ROffline.Util
         public static IMAGE_SECTION_HEADER* GetFirstSection(ulong localImage, IMAGE_DOS_HEADER dosHeader) =>
             (IMAGE_SECTION_HEADER*)(localImage + (uint)dosHeader.e_lfanew/*START OF NTHEADER*/ + (uint)Marshal.SizeOf<IMAGE_NT_HEADERS>());
 
-        public static void GetImageHeaders(ulong localImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader)
-        {
-            dosHeader = *(IMAGE_DOS_HEADER*)localImage;
-            IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)(localImage + (ulong)dosHeader.e_lfanew);
-            fileHeader = ntHeader->FileHeader;
-            optionalHeader = ntHeader->OptionalHeader;
-        }
+        //public static void GetImageHeaders(ulong localImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader)
+        //{
+        //    dosHeader = *(IMAGE_DOS_HEADER*)localImage;
+        //    IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)(localImage + (ulong)dosHeader.e_lfanew);
+        //    fileHeader = ntHeader->FileHeader;
+        //    optionalHeader = ntHeader->OptionalHeader;
+        //}
 
         public static void GetImageHeaders(byte[] rawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader)
         {
@@ -39,23 +39,43 @@ namespace D2ROffline.Util
             }
         }
 
-        public static IntPtr GetDllFunctionAddressRVA(ulong localImage, string funcName)
+        public static uint GetDllFunctionAddressRVA(byte[] rawImage, ulong localImage, string funcName)
         {
-            GetImageHeaders(localImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+            GetImageHeaders(rawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
 
             uint exportDirRVA = optionalHeader.ExportTable.VirtualAddress;
-            uint exportDirOffset = RVAToOffset(localImage, dosHeader, fileHeader, exportDirRVA);
+            //ulong exportDirOffset = RVAToOffset(localImage, dosHeader, fileHeader, exportDirRVA); // no need?
+            ulong exportDirOffset = RVAToOffset(localImage, dosHeader, fileHeader, exportDirRVA); // no need?
 
-            IMAGE_EXPORT_DIRECTORY exportDir = *(IMAGE_EXPORT_DIRECTORY*)(localImage + exportDirOffset);
-            int addressOfFunctionsArray = (int)(exportDir.AddressOfFunctions - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
-            int addressOfNamesArray = (int)(exportDir.AddressOfNames - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
-            int addressOfNameOrdinalsArray = (int)(exportDir.AddressOfNameOrdinals - exportDirRVA + /* idk? */ (localImage + exportDirOffset));
+            IMAGE_EXPORT_DIRECTORY exportDir = *(IMAGE_EXPORT_DIRECTORY*)(localImage + exportDirRVA);
+            uint* addressOfFunctionsArray = (uint*)(exportDir.AddressOfFunctions + localImage);
+            uint* addressOfNamesArray = (uint*)(exportDir.AddressOfNames + localImage);
+            uint* addressOfNameOrdinalsArray = (uint*)(exportDir.AddressOfNameOrdinals + localImage); // 
             for (int i = 0; i < exportDir.NumberOfNames; i++)
             {
-                //string functionName = (char*)(addressOfNamesArray)
+                byte* functionName = (byte*)(addressOfNamesArray[i] + localImage);
+
+                // just gonna DIY this _stricmp rel quick
+                bool match = true;
+                int index = 0;
+                while(functionName[index] != 0)
+                {
+                    Console.Write((char)functionName[index]);
+                    if ((char)functionName[index] != funcName[index])
+                    {
+                        match = false;
+                        break;
+                    }
+                    index++;
+                }
+                Console.WriteLine();
+
+                if (match)
+                    return addressOfFunctionsArray[i];
+
             }
 
-            return IntPtr.Zero;
+            return 0;
         }
 
         public static uint RVAToOffset(ulong localImage, IMAGE_DOS_HEADER dosHeader, IMAGE_FILE_HEADER fileHeader, uint dwRVA)
@@ -68,7 +88,7 @@ namespace D2ROffline.Util
                     if(sections[i].VirtualAddress + sections[i].VirtualSize > dwRVA)
                     {
                         dwRVA -= sections[i].VirtualAddress;
-                        dwRVA -= sections[i].PointerToRawData;
+                        dwRVA += sections[i].PointerToRawData;
                         return dwRVA;
                     }
                 }

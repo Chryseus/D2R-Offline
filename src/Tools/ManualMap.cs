@@ -14,8 +14,9 @@ namespace D2ROffline.Tools
     public unsafe class ManualMap
     {
         public Memory Memory;
-        public IntPtr LocalScylla;
-        public IntPtr RemoteScylla;
+        public IntPtr LocalImage;
+        public IntPtr RemoteImage;
+        public byte[] RawImage;
 
         private Dictionary<string, ulong> MappedModules = new Dictionary<string, ulong>(StringComparer.InvariantCultureIgnoreCase);
         private Dictionary<string, byte[]> MappedRawImages = new Dictionary<string, byte[]>(StringComparer.InvariantCultureIgnoreCase);
@@ -93,14 +94,15 @@ namespace D2ROffline.Tools
             //Imports.NtUnmapViewOfSection((IntPtr)sectionHandle, localImage);
 
             // save ptrs
-            LocalScylla = localImage; 
-            LocalScylla = remoteImage; 
+            LocalImage = localImage; 
+            RemoteImage = remoteImage;
+            RawImage = rawImage;
             return (ulong)remoteImage; // return remote
         }
         public void CallEntrypoint(ulong moduleHandle)
         {
             // GET HEADERS
-            Toolbox.GetImageHeaders(moduleHandle, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
+            Toolbox.GetImageHeaders(RawImage, out IMAGE_DOS_HEADER dosHeader, out IMAGE_FILE_HEADER fileHeader, out IMAGE_OPTIONAL_HEADER64 optionalHeader);
 
             // GET DLLMAIN
             ulong entrypoint = moduleHandle + optionalHeader.AddressOfEntryPoint;
