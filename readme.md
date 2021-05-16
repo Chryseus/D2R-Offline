@@ -1,24 +1,20 @@
-# Diablo II: Resurrected - Offline Patcher
+# Diablo II Resurrected - Offline Patcher
 
 A simple tool that remaps & bypasses *Diablo II Resurrected* module and then continues to patch connection functions to allow local gameplay. 
 
-More information about the crc32 bypassing and remapping can be found in my '[Bypassing World of Warcraft's Read-Only Code Protection (crc32)](https://ferib.dev/blog.php?l=post/Bypassing_World_of_Warcraft_Crc32_Integrity_Checks)' blog post
-
-![diablo 2 resurrected screenshot](https://github.com/ferib/D2R-Offline/blob/master/img/weird_group_flex.jpg?raw=true)
-
 # Setup
-## Installation
 
+## Installing
 
-1. You will need the Diablo II: Resurrected game files.
+1. You will need the *Diablo II Resurrected* game files.
 
 1. You may also need [.NET Framework v4.7.2](https://dotnet.microsoft.com/download/dotnet-framework/thank-you/net472-web-installer).
 
 1. Download the latest release *(or clone the project and build it)* :  
 https://github.com/ferib/D2R-Offline/releases  
-Unzip and copy **both** `D2ROffline.exe` and `patches.txt` to your Diablo II: Resurrected game folder. They should be in the same directory as `Game.exe`.
+Unzip and copy **both** `D2ROffline.exe` and `patches.txt` to your *Diablo II Resurrected* game folder. They should be in the same directory as `Game.exe`.
 
-## Run
+## Running
 
 1. Double-click `D2ROffline.exe` to start the tool.
 
@@ -26,7 +22,10 @@ Unzip and copy **both** `D2ROffline.exe` and `patches.txt` to your Diablo II: Re
 
 1. Done!
 
-When loading a character, use the TCP/IP button and host a game, double clicking the character name or clicking Play will not work by default. See the `-FixLocalSave` argument under [Usage](#Usage) if you would like to edit your saves to play in offline mode *(including act1 to act5)*.
+
+When loading a character, double clicking the character name or clicking Play will not work by default. See the `-FixLocalSave` argument under [Usage](#Usage) if you would like to edit your saves to play in offline mode *(including act1 to act5)*.
+
+> _NOTE: You may need to run this tool **twice** for it to work properly. If after the first try it does not load your save games in offline mode, close the game and run `D2ROffline.exe` again._
 
 ## Please see the [FAQ](FAQ.md) if you have any issues.
 
@@ -36,10 +35,13 @@ When loading a character, use the TCP/IP button and host a game, double clicking
 You can run `D2ROffline.exe` with arguments to solve some problems.
 
 ### -FixLocalSave
-`.\D2ROffline.exe -FixLocalSave` This will update your save files to allow you to play your characters in single-player mode *(act3 to act5 included)* instead of hosting a TCP/IP game. This argument prevents the game from loading and will just patch your save files. Please note that this will also unlock all quests so that you can jump right into all acts.
+`.\D2ROffline.exe -FixLocalSave` This will update your save files to allow you to play your characters in single-player mode *(act3 to act5 included)* instead of hosting a TCP/IP game. This argument prevents the game from loading and will just patch your save files. **Please note that this will also unlock all quests so that you can jump right into all acts.**
 
-### -FixLocalSaveNoQuests`
+### -FixLocalSaveNoQuests
 `.\D2ROffline.exe -FixLocalSaveNoQuests` Does the same as `-FixLocalSave` but without unlocking any quests.
+
+### -FixLocalSaveResetQuests
+`.\D2ROffline.exe -FixLocalSaveResetQuests` In case you used `-FixLocalSave` by mistake and now you want to reset the quests back to normal.
 
 ### -UpdateKeyBinds
 `.\D2ROffline.exe -UpdateKeyBinds` This will sync your keybindings between characters.
@@ -58,7 +60,7 @@ You can run `D2ROffline.exe` with arguments to solve some problems.
 There is a neat little feature that allows you to use the `patches.txt` file and create your own patching rules, the `patches.txt` file **MUST** be in the same folder as the executable!
 This allows you to create your own patches.
 
-### Patches
+## Patches
 
 Offline/Local patch, thanks to [king48488](https://www.ownedcore.com/forums/diablo-2-resurrected/diablo-2-resurrected-bots-programs/940315-some-basic-offsets-let-you-play-offline.html)
 ```
@@ -92,15 +94,9 @@ Language patches to force the client into loading a language, thanks to Ferib (m
 0x1446C8:+0x270FC: ~ Brazilian *[ptBR]*
 ```
 
-_NOTE: The above patches are modifying the .text section of the game, for those that want to patch the .data section you can simply use Cheat Engine because the anti-cheating does not scan those areas for modified values._
+> _NOTE: The above patches are modifying the .text section of the game, for those that want to patch the .data section you can simply use Cheat Engine because the anti-cheating does not scan those areas for modified values._
 
-## Mutiplayer (tcp/ip)
-Want to test out multiplayer mode? feel free to join my (premature) server emulator at ~~`ferib.dev`~~ `d2rga.net` and come say hi!
-For those who are interested in the server emulation project, check it out at [d2rga.net](http://d2rga.net) for more info!
-
-Also, feel free to [donate money](https://github.com/sponsors/ferib) in case you made it this far, this will keep me motivated to work on Diablo2Resurrected related projects and to keep the server going, thanks!
-
-## Notices
+# Notices
 This repository is for educational purposes only. 
 Please do not perform any of the above actions on the Game client.
 
@@ -108,6 +104,6 @@ Diablo II and Diablo II: Resurrected are registered trademarks of Blizzard Enter
 This project is not affiliated with Blizzard Entertainment in any way.
 
 
-## Credits
- - Ferib *(me)*: [crc32 bypass](https://ferib.dev/blog.php?l=post/Bypassing_World_of_Warcraft_Crc32_Integrity_Checks)
+# Credits
+ - Ferib : [crc32 bypass](https://ferib.dev/blog.php?l=post/Bypassing_World_of_Warcraft_Crc32_Integrity_Checks)
  - king48488: [Patch locations](https://www.ownedcore.com/forums/diablo-2-resurrected/diablo-2-resurrected-bots-programs/940315-some-basic-offsets-let-you-play-offline.html)

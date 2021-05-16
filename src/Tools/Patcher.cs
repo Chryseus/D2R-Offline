@@ -78,16 +78,9 @@ namespace D2ROffline.Tools
             {
                 var keyInfo = Console.ReadKey();
                 if (keyInfo.Key == ConsoleKey.Escape)
-                    return false;
+                    Environment.Exit(1);
 
-                try
-                {
-                    return Start(d2rPath, crashDelay, d2rargs);
-                }
-                catch (Exception)
-                {
-                    return false;
-                }
+                return false;
             }
         }
 
