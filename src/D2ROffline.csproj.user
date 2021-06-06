@@ -4,7 +4,7 @@
     <StartArguments>D:\Games\D2R\Game.exe</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
-    <StartArguments>C:/D2R/game.exe -Delay 420</StartArguments>
+    <StartArguments>D:\Games\D2R\Game.exe -Delay 420</StartArguments>
   </PropertyGroup>
   <PropertyGroup>
     <PublishUrlHistory>publish\</PublishUrlHistory>

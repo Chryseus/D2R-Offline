@@ -76,10 +76,6 @@ namespace D2ROffline.Tools
             }
             catch (Exception)
             {
-                var keyInfo = Console.ReadKey();
-                if (keyInfo.Key == ConsoleKey.Escape)
-                    Environment.Exit(1);
-
                 return false;
             }
         }
